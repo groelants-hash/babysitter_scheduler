@@ -1,0 +1,75 @@
+# Babysitter Scheduler — Deployment Guide
+
+## Project Structure
+
+```
+babysitter-scheduler/
+├── api/
+│   ├── slots.js        ← API route for slots data
+│   └── users.js        ← API route for users data
+├── src/
+│   └── App.jsx         ← Your React app (storage layer replaced)
+├── index.html
+├── package.json
+└── vercel.json
+```
+
+---
+
+## Step 1 — Create Upstash Redis
+
+1. Go to https://upstash.com and sign up (free)
+2. Click **Create Database**
+3. Name it `babysitter-scheduler`, pick a region close to you
+4. Once created, copy:
+   - `UPSTASH_REDIS_REST_URL`
+   - `UPSTASH_REDIS_REST_TOKEN`
+
+---
+
+## Step 2 — Set up the project locally
+
+```bash
+mkdir babysitter-scheduler
+cd babysitter-scheduler
+npm init -y
+npm install react react-dom vite @vitejs/plugin-react @upstash/redis express
+```
+
+---
+
+## Step 3 — Create the files (see other artifacts)
+
+Create all files as shown in the other code artifacts.
+
+---
+
+## Step 4 — Deploy to Vercel
+
+```bash
+npm install -g vercel
+vercel login
+vercel
+```
+
+When prompted:
+- Framework: **Vite**
+- Build command: `npm run build`
+- Output directory: `dist`
+
+Then add your environment variables in Vercel dashboard:
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+
+Or via CLI:
+```bash
+vercel env add UPSTASH_REDIS_REST_URL
+vercel env add UPSTASH_REDIS_REST_TOKEN
+vercel --prod
+```
+
+---
+
+## Step 5 — Done! 🎉
+
+Your app is live. Share the URL with your babysitters!
