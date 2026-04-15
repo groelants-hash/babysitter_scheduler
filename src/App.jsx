@@ -9,7 +9,7 @@ const defaultSlotData = {
     { id: "s2", date: "2026-05-07", start: "18:00", end: "22:00", claimedBy: null },
     { id: "s3", date: "2026-05-10", start: "09:00", end: "13:00", claimedBy: null },
   ],
-  rates: {}
+  rates: { day: 12, night: 10 }
 };
 
 const defaultUsers = [
@@ -529,10 +529,23 @@ function Payroll({ data, save, fixedSitter, readOnly }) {
   const [month, setMonth] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; });
   const [selected, setSelected] = useState(fixedSitter || data.sitters[0] || "");
   const rates = data.rates || {};
-  const dayRate = parseFloat(rates.day || 0), nightRate = parseFloat(rates.night || 0);
+  const dayRate = parseFloat(rates.day ?? 12), nightRate = parseFloat(rates.night ?? 10);
 
   function updateRate(field, val) { save({ ...data, rates: { ...(data.rates || {}), [field]: val } }); }
 
+  // Monthly summary — all sitters
+  const allMonthSlots = data.slots.filter(sl => sl.date.startsWith(month));
+  const claimedMonthSlots = allMonthSlots.filter(sl => sl.claimedBy);
+  const totalOwed = claimedMonthSlots.reduce((sum, sl) => {
+    const { dayH, nightH } = calcSplit(sl);
+    return sum + dayH * dayRate + nightH * nightRate;
+  }, 0);
+  const totalForecast = allMonthSlots.reduce((sum, sl) => {
+    const { dayH, nightH } = calcSplit(sl);
+    return sum + dayH * dayRate + nightH * nightRate;
+  }, 0);
+
+  // Per-sitter breakdown
   const sitter = fixedSitter || selected;
   const color = sitterColor(sitter, data.sitters);
   const monthSlots = data.slots.filter(sl => sl.claimedBy === sitter && sl.date.startsWith(month)).sort((a, b) => a.date.localeCompare(b.date));
@@ -542,6 +555,7 @@ function Payroll({ data, save, fixedSitter, readOnly }) {
 
   return (
     <div>
+      {/* Month selector */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.25rem", flexWrap: "wrap" }}>
         <select className="sch-input" value={month} onChange={e => setMonth(e.target.value)}>
           {Array.from({ length: 12 }, (_, i) => {
@@ -550,8 +564,44 @@ function Payroll({ data, save, fixedSitter, readOnly }) {
             return <option key={val} value={val}>{d.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</option>;
           })}
         </select>
-        {!fixedSitter && (
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      </div>
+
+      {/* Monthly summary — admin only */}
+      {!readOnly && (
+        <>
+          {/* Rates */}
+          <p style={{ fontSize: 11, fontWeight: 500, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Rates</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: "1.25rem" }}>
+            {[["day", "Day rate (before 19:00)", "#FAC775"], ["night", "Night rate (19:00+)", "#7F77DD"]].map(([field, label, accent]) => (
+              <div key={field} className="sch-stat" style={{ borderLeft: `3px solid ${accent}` }}>
+                <p className="sch-stat-label">{label}</p>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 4 }}>
+                  <span style={{ fontSize: 15, color: "var(--color-text-secondary)" }}>€</span>
+                  <input type="number" min="0" step="0.5" className="sch-input" style={{ width: "100%", fontSize: 20, fontWeight: 500, padding: "2px 4px", border: "none", borderBottom: "1.5px solid var(--color-border-secondary)", borderRadius: 0, background: "transparent" }} value={rates[field] || ""} placeholder="0" onChange={e => updateRate(field, e.target.value)} />
+                  <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>/h</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Summary cards */}
+          <p style={{ fontSize: 11, fontWeight: 500, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Monthly summary</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: "1.5rem" }}>
+            <div className="sch-stat" style={{ background: "var(--color-background-success)", borderLeft: "3px solid #1D9E75" }}>
+              <p className="sch-stat-label" style={{ color: "var(--color-text-success)" }}>Total owed</p>
+              <p className="sch-stat-val" style={{ color: "var(--color-text-success)" }}>€{totalOwed.toFixed(2)}</p>
+              <p style={{ fontSize: 12, color: "var(--color-text-success)", margin: "2px 0 0", opacity: 0.8 }}>{claimedMonthSlots.length} slot{claimedMonthSlots.length !== 1 ? "s" : ""} claimed</p>
+            </div>
+            <div className="sch-stat" style={{ background: "#EEEDFE", borderLeft: "3px solid #7F77DD" }}>
+              <p className="sch-stat-label" style={{ color: "#534AB7" }}>Full month forecast</p>
+              <p className="sch-stat-val" style={{ color: "#534AB7" }}>€{totalForecast.toFixed(2)}</p>
+              <p style={{ fontSize: 12, color: "#534AB7", margin: "2px 0 0", opacity: 0.8 }}>{allMonthSlots.length} slot{allMonthSlots.length !== 1 ? "s" : ""} total</p>
+            </div>
+          </div>
+
+          {/* Per-sitter selector */}
+          <p style={{ fontSize: 11, fontWeight: 500, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Per sitter</p>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: "1.25rem" }}>
             {data.sitters.map(name => {
               const c = sitterColor(name, data.sitters); const active = selected === name;
               return (
@@ -562,22 +612,7 @@ function Payroll({ data, save, fixedSitter, readOnly }) {
               );
             })}
           </div>
-        )}
-      </div>
-
-      {!readOnly && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: "1.25rem" }}>
-          {[["day", "Day rate (before 19:00)", "#FAC775"], ["night", "Night rate (19:00+)", "#7F77DD"]].map(([field, label, accent]) => (
-            <div key={field} className="sch-stat" style={{ borderLeft: `3px solid ${accent}` }}>
-              <p className="sch-stat-label">{label}</p>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 4 }}>
-                <span style={{ fontSize: 15, color: "var(--color-text-secondary)" }}>€</span>
-                <input type="number" min="0" step="0.5" className="sch-input" style={{ width: "100%", fontSize: 20, fontWeight: 500, padding: "2px 4px", border: "none", borderBottom: "1.5px solid var(--color-border-secondary)", borderRadius: 0, background: "transparent" }} value={rates[field] || ""} placeholder="0" onChange={e => updateRate(field, e.target.value)} />
-                <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>/h</span>
-              </div>
-            </div>
-          ))}
-        </div>
+        </>
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: "1.5rem" }}>
