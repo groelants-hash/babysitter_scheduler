@@ -281,7 +281,7 @@ function SitterApp({ slotData, saveSlots, session }) {
   function claimSlot(id) {
     const slot = slotData.slots.find(s => s.id === id);
     if (slot.claimedBy) return;
-    saveSlots({ ...slotData, slots: slotData.slots.map(s => s.id === id ? { ...s, claimedBy: name } : s) });
+    const today = new Date(); const claimedAt = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`; saveSlots({ ...slotData, slots: slotData.slots.map(s => s.id === id ? { ...s, claimedBy: name, claimedAt } : s) });
   }
 
   function unclaimSlot(id) {

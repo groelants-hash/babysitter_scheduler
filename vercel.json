@@ -3,6 +3,14 @@
     {
       "path": "/api/cron",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron-monthly",
+      "schedule": "0 8 L * *"
+    },
+    {
+      "path": "/api/cron-slot-confirm",
+      "schedule": "0 23 * * *"
     }
   ]
 }
