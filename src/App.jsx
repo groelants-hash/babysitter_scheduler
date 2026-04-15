@@ -401,7 +401,7 @@ function SlotsTab({ data, save }) {
       <div className="sch-slot" style={{ flexDirection: "column", gap: 0, padding: "4px 16px", marginBottom: 16 }}>
         {schedule.map((rec, i) => (
           <div key={rec.day} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: i < 6 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
-            <div onClick={() => toggleDay(i)} style={{ width: 32, height: 18, borderRadius: 99, background: rec.on ? "#7F77DD" : "var(--color-background-secondary)", border: `0.5px solid ${rec.on ? "#7F77DD" : "var(--color-border-secondary)"}`, cursor: "pointer", position: "relative", flexShrink: 0, transition: "background 0.15s" }}>
+            <div onClick={() => toggleDay(i)} style={{ width: 32, height: 18, borderRadius: 99, background: rec.on ? "#7F77DD" : "var(--color-border-secondary)", border: `0.5px solid ${rec.on ? "#7F77DD" : "var(--color-border-primary)"}`, cursor: "pointer", position: "relative", flexShrink: 0, transition: "background 0.15s" }}>
               <div style={{ position: "absolute", top: 3, left: rec.on ? "auto" : "3px", right: rec.on ? "3px" : "auto", width: 12, height: 12, borderRadius: "50%", background: "#fff" }} />
             </div>
             <span style={{ width: 32, fontSize: 13, fontWeight: 500, color: rec.on ? "var(--color-text-primary)" : "var(--color-text-secondary)" }}>{rec.day}</span>
@@ -558,8 +558,8 @@ function Payroll({ data, save, fixedSitter, readOnly }) {
       {/* Month selector */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.25rem", flexWrap: "wrap" }}>
         <select className="sch-input" value={month} onChange={e => setMonth(e.target.value)}>
-          {Array.from({ length: 12 }, (_, i) => {
-            const d = new Date(); d.setMonth(d.getMonth() - i);
+          {Array.from({ length: 8 }, (_, i) => {
+            const d = new Date(); d.setMonth(d.getMonth() + 1 - i);
             const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
             return <option key={val} value={val}>{d.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</option>;
           })}
@@ -577,7 +577,7 @@ function Payroll({ data, save, fixedSitter, readOnly }) {
                 <p className="sch-stat-label">{label}</p>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 4 }}>
                   <span style={{ fontSize: 15, color: "var(--color-text-secondary)" }}>€</span>
-                  <input type="number" min="0" step="0.5" className="sch-input" style={{ width: "100%", fontSize: 20, fontWeight: 500, padding: "2px 4px", border: "none", borderBottom: "1.5px solid var(--color-border-secondary)", borderRadius: 0, background: "transparent" }} value={rates[field] || ""} placeholder="0" onChange={e => updateRate(field, e.target.value)} />
+                  <input type="number" min="0" step="0.5" className="sch-input" style={{ width: "100%", fontSize: 20, fontWeight: 500, padding: "2px 4px", border: "none", borderBottom: "1.5px solid var(--color-border-secondary)", borderRadius: 0, background: "transparent" }} value={rates[field] ?? (field === "day" ? 12 : 10)} placeholder="0" onChange={e => updateRate(field, e.target.value)} />
                   <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>/h</span>
                 </div>
               </div>
