@@ -5,7 +5,7 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
-const KEY = "babysitter-app-users";
+const KEY = "babysitter:users";
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
