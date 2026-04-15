@@ -1,8 +1,5 @@
 import { useState, useEffect } from "react";
 
-const SHARED = true;
-const SLOTS_KEY = "babysitter-app-data";
-const USERS_KEY = "babysitter-app-users";
 const HERO_IMG = "https://i.imgur.com/w6RMVy0.jpeg";
 
 const defaultSlotData = {
@@ -121,45 +118,90 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState("slots");
 
-useEffect(() => {
-  (async () => {
+  useEffect(() => {
+    (async () => {
+      try {
+        const [sd, ud] = await Promise.all([
+          fetch("/api/data").then(r => r.json()),
+          fetch("/api/users").then(r => r.json()),
+        ]);
+        setSlotData(sd || defaultSlotData);
+        setUsers(ud || defaultUsers);
+      } catch {
+        setSlotData(defaultSlotData);
+        setUsers(defaultUsers);
+      }
+      setTimeout(() => setLoaded(true), 300);
+    })();
+  }, []);
+
+  async function saveSlots(d) {
+    setSaving(true); setSlotData(d);
     try {
-      const [sd, ud] = await Promise.all([
-        fetch("/api/data").then(r => r.json()),
-        fetch("/api/users").then(r => r.json()),
-      ]);
-      setSlotData(sd || defaultSlotData);
-      setUsers(ud || defaultUsers);
-    } catch {
-      setSlotData(defaultSlotData);
-      setUsers(defaultUsers);
-    }
-    setTimeout(() => setLoaded(true), 300);
-  })();
-}, []);
+      await fetch("/api/data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(d),
+      });
+    } catch {}
+    setSaving(false);
+  }
 
-async function saveSlots(d) {
-  setSaving(true); setSlotData(d);
-  try {
-    await fetch("/api/data", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(d),
-    });
-  } catch {}
-  setSaving(false);
+  async function saveUsers(u) {
+    setUsers(u);
+    try {
+      await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(u),
+      });
+    } catch {}
+  }
+
+  if (!loaded || !slotData || !users) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--color-text-secondary)", fontSize: 14 }}>
+      Loading…
+    </div>
+  );
+
+  if (!session) return (
+    <>
+      <style>{CSS}</style>
+      <LoginScreen users={users} onLogin={setSession} />
+    </>
+  );
+
+  const isAdmin = session.role === "admin";
+
+  return (
+    <>
+      <style>{CSS}</style>
+      <div className="sch-wrap">
+        <div className="sch-header">
+          <p className="sch-title">
+            Babysitter scheduler
+            {saving && <span className="sch-saving">saving…</span>}
+          </p>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div className="sch-avatar" style={{ background: isAdmin ? "#7F77DD" : "#1D9E75", width: 26, height: 26, fontSize: 12 }}>{initials(session.email)}</div>
+              <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{session.email.split("@")[0]}</span>
+              <span className={`role-badge ${isAdmin ? "role-admin" : "role-sitter"}`}>{session.role}</span>
+            </div>
+            <button className="sch-icon-btn" title="Sign out" style={{ fontSize: 13, padding: "4px 8px" }} onClick={() => { setSession(null); setTab("slots"); }}>
+              Sign out
+            </button>
+          </div>
+        </div>
+        {isAdmin
+          ? <AdminApp slotData={slotData} saveSlots={saveSlots} users={users} saveUsers={saveUsers} tab={tab} setTab={setTab} />
+          : <SitterApp slotData={slotData} saveSlots={saveSlots} session={session} />
+        }
+      </div>
+    </>
+  );
 }
 
-async function saveUsers(u) {
-  setUsers(u);
-  try {
-    await fetch("/api/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(u),
-    });
-  } catch {}
-}
 // ─── Login ───────────────────────────────────────────────────────────────────
 
 function LoginScreen({ users, onLogin }) {
@@ -229,7 +271,7 @@ function AdminApp({ slotData, saveSlots, users, saveUsers, tab, setTab }) {
   );
 }
 
-// ─── Sitter shell (BUG FIX: visibleSlots now inside return) ──────────────────
+// ─── Sitter shell ─────────────────────────────────────────────────────────────
 
 function SitterApp({ slotData, saveSlots, session }) {
   const [tab, setTab] = useState("slots");
@@ -262,7 +304,6 @@ function SitterApp({ slotData, saveSlots, session }) {
           </button>
         ))}
       </div>
-
       {tab === "slots" && (
         <>
           {visibleSlots.length === 0 && <p className="sch-empty">No slots available.</p>}
@@ -288,7 +329,6 @@ function SitterApp({ slotData, saveSlots, session }) {
           })}
         </>
       )}
-
       {tab === "payroll" && <Payroll data={slotData} save={saveSlots} fixedSitter={name} readOnly />}
     </>
   );
