@@ -494,7 +494,7 @@ function LoginScreen({ users, onLogin }) {
 function AdminApp({ slotData, saveSlots, users, saveUsers, tab, setTab }) {
   const claimed = slotData.slots.filter(sl => sl.claimedBy).length;
   const total = slotData.slots.length;
-  const tabs = ["slots", "sitters", "overview", "payroll", "users"];
+  const tabs = ["slots", "sitters", "overview", "payroll", "users", "test"];
 
   return (
     <>
@@ -521,6 +521,7 @@ function AdminApp({ slotData, saveSlots, users, saveUsers, tab, setTab }) {
       {tab === "overview" && <OverviewTab data={slotData} unclaimSlot={id => saveSlots({ ...slotData, slots: slotData.slots.map(s => s.id === id ? { ...s, claimedBy: null } : s) })} />}
       {tab === "payroll"  && <Payroll data={slotData} save={saveSlots} />}
       {tab === "users"    && <UsersTab users={users} saveUsers={saveUsers} sitters={slotData.sitters} />}
+      {tab === "test"     && <TestTab />}
     </>
   );
 }
@@ -1079,6 +1080,93 @@ function Payroll({ data, save, fixedSitter, readOnly }) {
             );
           })
       }
+    </div>
+  );
+}
+
+// ─── Test tab ──────────────────────────────────────────────────────────────────────────────
+
+function TestTab() {
+  const CRONS = [
+    {
+      key: "reminder",
+      label: "7-day reminder",
+      desc: "Emails admin if any slots are unclaimed and due in 7 days.",
+      icon: "⏰",
+      url: "/api/cron",
+    },
+    {
+      key: "confirm",
+      label: "Slot confirmation",
+      desc: "Emails sitters who have a slot happening today to confirm timing.",
+      icon: "✅",
+      url: "/api/cron-slot-confirm",
+    },
+    {
+      key: "monthly",
+      label: "Monthly summary",
+      desc: "Emails each sitter their earnings summary and next month schedule.",
+      icon: "📅",
+      url: "/api/cron-monthly?force=1",
+    },
+  ];
+
+  const [results, setResults] = useState({});
+  const [loading, setLoading] = useState({});
+
+  async function runCron(key, url) {
+    setLoading(l => ({ ...l, [key]: true }));
+    setResults(r => ({ ...r, [key]: null }));
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${import.meta.env.VITE_CRON_SECRET || ""}` },
+      });
+      const json = await res.json();
+      setResults(r => ({ ...r, [key]: { ok: res.ok, msg: json.message || json.error || JSON.stringify(json) } }));
+    } catch (e) {
+      setResults(r => ({ ...r, [key]: { ok: false, msg: e.message } }));
+    }
+    setLoading(l => ({ ...l, [key]: false }));
+  }
+
+  return (
+    <div>
+      <div className="card" style={{ padding: "14px 16px", marginBottom: 20, background: "var(--gold-light)", borderLeft: "3px solid var(--gold)" }}>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--gold)" }}>⚠️ Admin only</p>
+        <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-mid)" }}>These buttons trigger real emails to real people. Use only for testing.</p>
+      </div>
+      {CRONS.map(({ key, label, desc, icon, url }) => {
+        const result = results[key];
+        const isLoading = loading[key];
+        return (
+          <div className="card" key={key} style={{ padding: "16px", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+              <div className="slot-icon" style={{ background: "var(--cream-dark)", fontSize: 22, width: 44, height: 44, flexShrink: 0 }}>{icon}</div>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-dark)" }}>{label}</p>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--text-light)", fontWeight: 500 }}>{desc}</p>
+              </div>
+            </div>
+            <button
+              className={"btn btn-sm" + (isLoading ? "" : " btn-primary")}
+              style={{ width: "100%", justifyContent: "center" }}
+              disabled={isLoading}
+              onClick={() => runCron(key, url)}
+            >
+              {isLoading ? "Running…" : "▶ Run now"}
+            </button>
+            {result && (
+              <div style={{
+                marginTop: 10, padding: "10px 12px", borderRadius: 10, fontSize: 13, fontWeight: 600,
+                background: result.ok ? "var(--green-light)" : "#FDECEA",
+                color: result.ok ? "var(--green)" : "#C0392B",
+              }}>
+                {result.ok ? "✓ " : "⚠️ "}{result.msg}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
