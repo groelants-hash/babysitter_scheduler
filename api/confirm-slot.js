@@ -151,7 +151,7 @@ export default async function handler(req, res) {
     // Already confirmed
     if (action === "confirm") {
       const updated = { ...slotData, slots: slotData.slots.map(s => s.id === slotId ? { ...s, confirmed: true } : s) };
-      await redis.set(SLOTS_KEY, JSON.stringify(updated));
+      await redis.set(SLOTS_KEY, updated);
       return res.status(200).send(htmlPage("Confirmed!", `
         <div class="success">Your slot has been confirmed. See you then!</div>
         <div class="slot-box">
@@ -224,7 +224,7 @@ export default async function handler(req, res) {
     };
 
     const updatedData = { ...slotData, slots: slotData.slots.map(s => s.id === slotId ? updatedSlot : s) };
-    await redis.set(SLOTS_KEY, JSON.stringify(updatedData));
+    await redis.set(SLOTS_KEY, updatedData);
 
     // Notify admins if anything changed
     if (timingChanged || comment) {
