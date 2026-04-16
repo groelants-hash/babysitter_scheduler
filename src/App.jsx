@@ -303,36 +303,29 @@ const CSS = `
   @keyframes fadeUp { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
   .fade-up { animation: fadeUp 0.25s ease both; }
 
-  /* ── Assign bottom sheet ── */
-  .sheet-backdrop {
+  /* ── Assign popover ── */
+  .popover-backdrop {
     position: fixed; inset: 0; z-index: 200;
-    background: rgba(44,32,22,0.4);
-    backdrop-filter: blur(2px);
-    animation: fadeIn 0.18s ease;
+    background: transparent;
   }
-  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
-  .sheet {
-    position: fixed; bottom: 0; left: 0; right: 0; z-index: 201;
-    background: #fff; border-radius: 24px 24px 0 0;
-    padding: 0 0 32px;
-    box-shadow: 0 -8px 40px rgba(44,32,22,0.18);
-    animation: slideUp 0.22s cubic-bezier(0.32,0.72,0,1);
-    max-width: 540px; margin: 0 auto;
-  }
-  @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
-  .sheet-handle {
-    width: 36px; height: 4px; border-radius: 99px;
-    background: var(--brown-light); margin: 12px auto 0;
+  @keyframes fadeIn { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
+  .popover {
+    position: fixed; z-index: 201;
+    background: #fff; border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(44,32,22,0.18), 0 0 0 1px var(--border);
+    min-width: 220px; max-width: 280px;
+    animation: fadeIn 0.15s cubic-bezier(0.32,0.72,0,1);
+    overflow: hidden;
   }
   .sheet-header {
-    padding: 16px 20px 12px;
+    padding: 12px 16px 10px;
     border-bottom: 1px solid var(--border);
   }
-  .sheet-title { font-size: 16px; font-weight: 800; color: var(--text-dark); margin: 0 0 2px; }
-  .sheet-sub { font-size: 13px; font-weight: 500; color: var(--text-light); margin: 0; }
+  .sheet-title { font-size: 14px; font-weight: 800; color: var(--text-dark); margin: 0 0 1px; }
+  .sheet-sub { font-size: 12px; font-weight: 500; color: var(--text-light); margin: 0; }
   .sheet-sitter-row {
-    display: flex; align-items: center; gap: 12px;
-    padding: 13px 20px; cursor: pointer;
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; cursor: pointer;
     border-bottom: 1px solid var(--border);
     transition: background 0.1s;
   }
@@ -340,8 +333,8 @@ const CSS = `
   .sheet-sitter-row:active { background: var(--cream); }
   .sheet-sitter-row.current { background: var(--cream-dark); }
   .sheet-unassign {
-    display: flex; align-items: center; gap: 12px;
-    padding: 13px 20px; cursor: pointer;
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; cursor: pointer;
     border-top: 1px solid var(--border);
     transition: background 0.1s;
   }
@@ -596,19 +589,42 @@ function SitterApp({ slotData, saveSlots, session }) {
 
 // --- Assign Sheet ---
 
-function AssignSheet({ slot, sitters, onAssign, onClose }) {
+function AssignSheet({ slot, sitters, onAssign, onClose, anchor }) {
   if (!slot) return null;
   const hour = parseInt(slot.start.split(":")[0]);
   const timeIcon = hour >= 19 ? "🌙" : hour >= 17 ? "🌆" : "☀️";
 
+  // Position popover near the clicked button, keeping it within viewport
+  const style = {};
+  if (anchor) {
+    const PAD = 8;
+    const POP_W = 260;
+    const POP_H = 60 + sitters.length * 56 + (slot.claimedBy ? 52 : 0);
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    // Horizontal: prefer right-aligned to anchor, clamp to viewport
+    let left = anchor.right - POP_W;
+    if (left < PAD) left = PAD;
+    if (left + POP_W > vw - PAD) left = vw - POP_W - PAD;
+    // Vertical: prefer below anchor, flip above if not enough room
+    let top = anchor.bottom + PAD;
+    if (top + POP_H > vh - PAD) top = anchor.top - POP_H - PAD;
+    if (top < PAD) top = PAD;
+    style.left = left;
+    style.top = top;
+    style.width = POP_W;
+  } else {
+    style.top = "50%"; style.left = "50%";
+    style.transform = "translate(-50%, -50%)";
+  }
+
   return (
     <>
-      <div className="sheet-backdrop" onClick={onClose} />
-      <div className="sheet">
-        <div className="sheet-handle" />
+      <div className="popover-backdrop" onClick={onClose} />
+      <div className="popover" style={style}>
         <div className="sheet-header">
           <p className="sheet-title">{timeIcon} {fmtDate(slot.date)}</p>
-          <p className="sheet-sub">{slot.start} – {slot.end} · Assign to a sitter</p>
+          <p className="sheet-sub">{slot.start} – {slot.end}</p>
         </div>
         {sitters.map(name => {
           const color = sitterColor(name, sitters);
@@ -616,22 +632,22 @@ function AssignSheet({ slot, sitters, onAssign, onClose }) {
           return (
             <div key={name} className={"sheet-sitter-row" + (isCurrent ? " current" : "")}
               onClick={() => { onAssign(slot.id, name); onClose(); }}>
-              <div className="avatar" style={{ background: color, width: 40, height: 40, fontSize: 17 }}>{initials(name)}</div>
+              <div className="avatar" style={{ background: color, width: 32, height: 32, fontSize: 14 }}>{initials(name)}</div>
               <div style={{ flex: 1 }}>
-                <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-dark)" }}>{name}</p>
-                {isCurrent && <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--text-light)" }}>Currently assigned</p>}
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-dark)" }}>{name}</p>
+                {isCurrent && <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "var(--text-light)" }}>Currently assigned</p>}
               </div>
               {isCurrent
-                ? <span style={{ fontSize: 20 }}>✓</span>
-                : <span style={{ fontSize: 16, color: "var(--text-light)" }}>→</span>
+                ? <span style={{ fontSize: 16 }}>✓</span>
+                : <span style={{ fontSize: 14, color: "var(--text-light)" }}>→</span>
               }
             </div>
           );
         })}
         {slot.claimedBy && (
           <div className="sheet-unassign" onClick={() => { onAssign(slot.id, null); onClose(); }}>
-            <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#FDECEA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>×</div>
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#C0392B" }}>Remove assignment</p>
+            <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#FDECEA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>×</div>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#C0392B" }}>Remove assignment</p>
           </div>
         )}
       </div>
@@ -643,6 +659,7 @@ function SlotsTab({ data, save }) {
   const schedule = data.schedule || defaultSchedule;
   const [newSlot, setNewSlot] = useState({ date: "", start: "09:00", end: "17:00", freeNight: false });
   const [assignSlot, setAssignSlot] = useState(null);
+  const [assignAnchor, setAssignAnchor] = useState(null);
   const [genMonth, setGenMonth] = useState(() => {
     const d = new Date(); d.setMonth(d.getMonth() + 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -764,7 +781,7 @@ function SlotsTab({ data, save }) {
                   }
                   <button className="btn-ghost" title="Assign sitter"
                     style={{ fontSize: 18, color: "var(--accent)" }}
-                    onClick={e => { e.stopPropagation(); setAssignSlot(sl); }}>
+                    onClick={e => { e.stopPropagation(); setAssignAnchor(e.currentTarget.getBoundingClientRect()); setAssignSlot(sl); }}>
                     👥
                   </button>
                   {sl.claimedBy && (
@@ -781,7 +798,8 @@ function SlotsTab({ data, save }) {
         slot={assignSlot}
         sitters={data.sitters}
         onAssign={assignToSitter}
-        onClose={() => setAssignSlot(null)}
+        onClose={() => { setAssignSlot(null); setAssignAnchor(null); }}
+        anchor={assignAnchor}
       />
 
       <div className="add-row">
@@ -880,10 +898,12 @@ function Payroll({ data, save, fixedSitter, readOnly }) {
   const allMonthSlots = data.slots.filter(sl => sl.date.startsWith(month));
   const claimedMonthSlots = allMonthSlots.filter(sl => sl.claimedBy);
   const totalOwed = claimedMonthSlots.reduce((sum, sl) => {
+    if (sl.freeNight) return sum;
     const { dayH, nightH } = calcSplit(sl);
     return sum + dayH * dayRate + nightH * nightRate;
   }, 0);
   const totalForecast = allMonthSlots.reduce((sum, sl) => {
+    if (sl.freeNight) return sum;
     const { dayH, nightH } = calcSplit(sl);
     return sum + dayH * dayRate + nightH * nightRate;
   }, 0);
@@ -891,7 +911,7 @@ function Payroll({ data, save, fixedSitter, readOnly }) {
   const sitter = fixedSitter || selected;
   const color = sitterColor(sitter, data.sitters);
   const monthSlots = data.slots.filter(sl => sl.claimedBy === sitter && sl.date.startsWith(month)).sort((a, b) => a.date.localeCompare(b.date));
-  const totals = monthSlots.reduce((acc, sl) => { const { dayH, nightH } = calcSplit(sl); return { dayH: acc.dayH + dayH, nightH: acc.nightH + nightH }; }, { dayH: 0, nightH: 0 });
+  const totals = monthSlots.reduce((acc, sl) => { if (sl.freeNight) return acc; const { dayH, nightH } = calcSplit(sl); return { dayH: acc.dayH + dayH, nightH: acc.nightH + nightH }; }, { dayH: 0, nightH: 0 });
   const totalDue = totals.dayH * dayRate + totals.nightH * nightRate;
   const monthName = new Date(month + "-02").toLocaleDateString("en-GB", { month: "long", year: "numeric" });
 
@@ -973,7 +993,7 @@ function Payroll({ data, save, fixedSitter, readOnly }) {
         ? <div className="empty"><div className="empty-icon">💸</div>{sitter} has no claimed slots in {monthName}.</div>
         : monthSlots.map(sl => {
             const { dayH, nightH } = calcSplit(sl);
-            const slotTotal = dayH * dayRate + nightH * nightRate;
+            const slotTotal = sl.freeNight ? 0 : dayH * dayRate + nightH * nightRate;
             const overnight = parseInt(sl.end.split(":")[0]) < parseInt(sl.start.split(":")[0]);
             return (
               <div className="pay-card" key={sl.id}>
@@ -988,8 +1008,8 @@ function Payroll({ data, save, fixedSitter, readOnly }) {
                     </p>
                     <p style={{ margin: 0, fontSize: 13, color: "var(--text-mid)", fontWeight: 500 }}>{sl.start} – {sl.end}</p>
                   </div>
-                  <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--text-dark)" }}>
-                    {dayRate > 0 || nightRate > 0 ? `€${slotTotal.toFixed(2)}` : `${fmtH(dayH + nightH)}h`}
+                  <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: sl.freeNight ? "var(--text-light)" : "var(--text-dark)" }}>
+                    {sl.freeNight ? "Free" : (dayRate > 0 || nightRate > 0 ? `€${slotTotal.toFixed(2)}` : `${fmtH(dayH + nightH)}h`)}
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: 6, paddingLeft: 48 }}>
