@@ -16,7 +16,7 @@ const defaultUsers = [
   { id: "u1", email: "admin@home.com", password: "admin123", role: "admin", sitterName: "" },
 ];
 
-const COLORS = ["#7F77DD","#1D9E75","#D85A30","#D4537E","#378ADD","#BA7517"];
+const COLORS = ["#E07A5F","#3D405B","#81B29A","#F2CC8F","#6B8CAE","#C77DFF"];
 const FREE_NIGHT_SITTERS = ["Iza","Gabi"];
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const defaultSchedule = DAYS.map(d => ({ day: d, on: false, start: "09:00", end: "17:00", freeNight: false }));
@@ -50,62 +50,302 @@ function calcSplit(slot) {
 }
 
 const CSS = `
-.sch-wrap{font-family:var(--font-sans);max-width:560px;margin:0 auto;padding:1.25rem 1rem 2rem}
-.sch-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem}
-.sch-title{font-size:20px;font-weight:500;color:var(--color-text-primary);margin:0}
-.sch-saving{font-size:11px;color:var(--color-text-secondary);margin-left:8px}
-.sch-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem}
-.sch-stat{background:var(--color-background-secondary);border-radius:10px;padding:12px 14px}
-.sch-stat-label{font-size:11px;color:var(--color-text-secondary);margin:0 0 4px;text-transform:uppercase;letter-spacing:0.04em}
-.sch-stat-val{font-size:26px;font-weight:500;color:var(--color-text-primary);margin:0}
-.sch-tabs{display:flex;gap:0;margin-bottom:1.25rem;border-bottom:0.5px solid var(--color-border-tertiary)}
-.sch-tab{font-size:13px;padding:7px 14px;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--color-text-secondary);cursor:pointer;margin-bottom:-1px;transition:color 0.1s}
-.sch-tab.active{color:var(--color-text-primary);border-bottom:2px solid var(--color-text-primary)}
-.sch-slot{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
-.sch-slot:hover{border-color:var(--color-border-secondary)}
-.sch-slot-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.sch-slot-body{flex:1;min-width:0}
-.sch-slot-date{font-size:14px;font-weight:500;color:var(--color-text-primary);margin:0 0 2px}
-.sch-slot-time{font-size:12px;color:var(--color-text-secondary);margin:0}
-.sch-slot-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.sch-avatar{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:#fff;flex-shrink:0}
-.sch-avatar-lg{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:500;color:#fff;flex-shrink:0}
-.sch-icon-btn{background:transparent;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:14px;padding:4px 6px;border-radius:6px;line-height:1}
-.sch-icon-btn:hover{background:var(--color-background-secondary)}
-.sch-add-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:1rem;padding:14px 16px;background:var(--color-background-secondary);border-radius:12px}
-.sch-input{font-size:13px;padding:7px 10px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary);outline:none}
-.sch-input:focus{border-color:var(--color-border-primary)}
-.sch-btn{font-size:13px;padding:7px 14px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-primary);cursor:pointer;white-space:nowrap}
-.sch-btn:hover{background:var(--color-background-secondary)}
-.sch-btn-primary{font-size:13px;padding:7px 16px;border-radius:8px;border:none;background:var(--color-text-primary);color:var(--color-background-primary);cursor:pointer;white-space:nowrap}
-.sch-btn-primary:hover{opacity:0.85}
-.sch-sitter-row{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
-.sch-empty{font-size:14px;color:var(--color-text-secondary);padding:1rem 0}
-.sch-cal-link{font-size:12px;padding:5px 12px;border-radius:8px;border:0.5px solid var(--color-border-secondary);color:var(--color-text-primary);text-decoration:none;white-space:nowrap}
-.sch-cal-link:hover{background:var(--color-background-secondary)}
-.sch-sitter-btn{display:flex;align-items:center;gap:7px;padding:7px 14px 7px 8px;border-radius:99px;border:0.5px solid var(--color-border-secondary);background:transparent;cursor:pointer;font-size:13px;color:var(--color-text-primary);transition:background 0.1s}
-.sch-sitter-btn:hover{background:var(--color-background-secondary)}
-.sch-sitter-btn.active{border-width:1.5px}
-.sch-open-badge{font-size:12px;padding:3px 10px;border-radius:99px;background:var(--color-background-success);color:var(--color-text-success);font-weight:500}
-.sch-taken-badge{font-size:12px;padding:3px 10px;border-radius:99px;background:var(--color-background-secondary);color:var(--color-text-secondary)}
-.sch-slot-sitter{font-size:12px;padding:3px 10px;border-radius:99px;font-weight:500;color:#fff}
-.auth-wrap{min-height:420px;display:flex;align-items:center;justify-content:center;padding:2rem 1rem}
-.auth-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:16px;padding:2rem;width:100%;max-width:360px}
-.auth-hero{width:100%;border-radius:10px;margin-bottom:1.25rem;display:block}
-.auth-h{font-size:18px;font-weight:500;text-align:center;margin:0 0 0.25rem;color:var(--color-text-primary)}
-.auth-sub{font-size:13px;text-align:center;color:var(--color-text-secondary);margin:0 0 1.5rem}
-.auth-field{margin-bottom:12px}
-.auth-label{font-size:12px;color:var(--color-text-secondary);margin:0 0 4px;display:block}
-.auth-input{width:100%;font-size:14px;padding:9px 12px;border-radius:9px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);color:var(--color-text-primary);outline:none;box-sizing:border-box}
-.auth-input:focus{border-color:var(--color-border-primary);background:var(--color-background-primary)}
-.auth-err{font-size:12px;color:var(--color-text-danger);margin:0 0 12px;padding:8px 12px;background:var(--color-background-danger);border-radius:8px}
-.auth-btn{width:100%;padding:10px;border-radius:9px;border:none;background:var(--color-text-primary);color:var(--color-background-primary);font-size:14px;font-weight:500;cursor:pointer;margin-top:4px}
-.auth-btn:hover{opacity:0.85}
-.user-row{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
-.role-badge{font-size:11px;padding:2px 8px;border-radius:99px;font-weight:500}
-.role-admin{background:#EEEDFE;color:#3C3489}
-.role-sitter{background:#E1F5EE;color:#085041}
-select.sch-input{cursor:pointer}
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Nunito+Sans:wght@400;500;600&display=swap');
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --cream: #FDF8F0;
+    --cream-dark: #F5EDD8;
+    --brown-light: #EDE0C8;
+    --text-dark: #2C2016;
+    --text-mid: #6B5744;
+    --text-light: #9C8070;
+    --accent: #E07A5F;
+    --accent-light: #FAEAE5;
+    --green: #5B9E7A;
+    --green-light: #E4F4EC;
+    --purple: #6B5EAD;
+    --purple-light: #EDEAF8;
+    --gold: #C4882A;
+    --gold-light: #FEF3DC;
+    --border: rgba(44,32,22,0.1);
+    --shadow: 0 2px 12px rgba(44,32,22,0.08);
+    --shadow-md: 0 4px 20px rgba(44,32,22,0.12);
+    --r: 16px;
+    --r-sm: 10px;
+    --font: 'Nunito', sans-serif;
+  }
+
+  body { background: var(--cream); margin: 0; font-family: var(--font); }
+
+  /* ── Layout ── */
+  .app-shell { min-height: 100dvh; background: var(--cream); }
+  .top-bar {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(253,248,240,0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .top-bar-title { font-size: 18px; font-weight: 800; color: var(--text-dark); margin: 0; letter-spacing: -0.3px; }
+  .top-bar-title span { color: var(--accent); }
+
+  .wrap { max-width: 540px; margin: 0 auto; padding: 16px 14px 100px; }
+
+  /* ── Stats ── */
+  .stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 20px; }
+  .stat-card {
+    background: #fff; border-radius: var(--r); padding: 14px 12px;
+    border: 1px solid var(--border); box-shadow: var(--shadow);
+    text-align: center;
+  }
+  .stat-val { font-size: 28px; font-weight: 800; color: var(--text-dark); line-height: 1; margin-bottom: 3px; }
+  .stat-lbl { font-size: 11px; font-weight: 600; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* ── Tabs ── */
+  .tab-bar {
+    display: flex; gap: 4px; margin-bottom: 16px;
+    background: var(--cream-dark); border-radius: 14px; padding: 4px;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tab-bar::-webkit-scrollbar { display: none; }
+  .tab-btn {
+    flex-shrink: 0; font-family: var(--font); font-size: 13px; font-weight: 700;
+    padding: 8px 14px; border-radius: 10px; border: none;
+    background: transparent; color: var(--text-mid); cursor: pointer;
+    transition: all 0.15s; white-space: nowrap;
+  }
+  .tab-btn.active {
+    background: #fff; color: var(--text-dark);
+    box-shadow: 0 2px 8px rgba(44,32,22,0.1);
+  }
+
+  /* ── Cards / Slots ── */
+  .card {
+    background: #fff; border-radius: var(--r); border: 1px solid var(--border);
+    box-shadow: var(--shadow); margin-bottom: 10px; overflow: hidden;
+  }
+  .slot-card {
+    background: #fff; border-radius: var(--r); border: 1px solid var(--border);
+    box-shadow: var(--shadow); margin-bottom: 10px;
+    display: flex; align-items: center; gap: 12px; padding: 14px 14px;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .slot-card:active { transform: scale(0.985); }
+  .slot-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+  }
+  .slot-body { flex: 1; min-width: 0; }
+  .slot-date { font-size: 15px; font-weight: 700; color: var(--text-dark); margin: 0 0 2px; }
+  .slot-time { font-size: 13px; font-weight: 500; color: var(--text-mid); margin: 0; }
+  .slot-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-flex; align-items: center;
+    font-size: 12px; font-weight: 700; padding: 4px 10px;
+    border-radius: 99px; white-space: nowrap;
+  }
+  .badge-open { background: var(--green-light); color: var(--green); }
+  .badge-taken { background: var(--cream-dark); color: var(--text-light); }
+  .badge-sitter { color: #fff; }
+  .badge-recurring { background: var(--purple-light); color: var(--purple); }
+  .badge-freenight { background: var(--gold-light); color: var(--gold); }
+  .badge-admin { background: var(--purple-light); color: var(--purple); }
+  .badge-role { background: var(--green-light); color: var(--green); }
+
+  /* ── Buttons ── */
+  .btn {
+    font-family: var(--font); font-size: 14px; font-weight: 700;
+    padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--border);
+    background: #fff; color: var(--text-dark); cursor: pointer;
+    transition: all 0.15s; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn-primary {
+    background: var(--accent); color: #fff; border-color: transparent;
+    box-shadow: 0 3px 10px rgba(224,122,95,0.35);
+  }
+  .btn-primary:active { background: #d06a4f; }
+  .btn-primary:disabled { background: var(--brown-light); box-shadow: none; color: var(--text-light); cursor: not-allowed; }
+  .btn-ghost { border: none; background: transparent; padding: 8px; border-radius: 8px; color: var(--text-light); font-size: 16px; cursor: pointer; }
+  .btn-ghost:active { background: var(--cream-dark); }
+  .btn-sm { font-size: 13px; padding: 8px 14px; border-radius: 10px; }
+  .btn-green { background: var(--green); color: #fff; border-color: transparent; box-shadow: 0 3px 10px rgba(91,158,122,0.3); }
+  .btn-green:active { background: #4a8a69; }
+  .btn-purple { background: var(--purple); color: #fff; border-color: transparent; box-shadow: 0 3px 10px rgba(107,94,173,0.3); }
+
+  .signout-btn {
+    font-family: var(--font); font-size: 12px; font-weight: 700;
+    padding: 6px 12px; border-radius: 8px; border: 1.5px solid var(--border);
+    background: #fff; color: var(--text-mid); cursor: pointer;
+  }
+
+  /* ── Avatars ── */
+  .avatar {
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: 800; color: #fff; flex-shrink: 0; font-family: var(--font);
+  }
+
+  /* ── Form elements ── */
+  .field { margin-bottom: 14px; }
+  .field-label { font-size: 12px; font-weight: 700; color: var(--text-mid); margin: 0 0 5px; display: block; text-transform: uppercase; letter-spacing: 0.04em; }
+  .input {
+    font-family: var(--font); font-size: 15px; font-weight: 500;
+    padding: 12px 14px; border-radius: var(--r-sm);
+    border: 1.5px solid var(--border);
+    background: var(--cream); color: var(--text-dark); outline: none; width: 100%;
+    transition: border-color 0.15s;
+    -webkit-appearance: none; appearance: none;
+  }
+  .input:focus { border-color: var(--accent); background: #fff; }
+  .input-sm { font-size: 13px; padding: 9px 11px; border-radius: 10px; }
+  select.input { cursor: pointer; }
+
+  /* ── Add row ── */
+  .add-row {
+    background: var(--cream-dark); border-radius: var(--r);
+    padding: 14px; margin-top: 12px;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  }
+
+  /* ── Section label ── */
+  .section-label {
+    font-size: 11px; font-weight: 800; color: var(--text-light);
+    text-transform: uppercase; letter-spacing: 0.07em;
+    margin: 20px 0 10px;
+  }
+
+  /* ── Auth ── */
+  .auth-shell {
+    min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+    padding: 20px 16px; background: var(--cream);
+  }
+  .auth-card {
+    background: #fff; border-radius: 24px; padding: 28px 24px;
+    width: 100%; max-width: 380px; box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
+  }
+  .auth-hero { width: 100%; border-radius: 16px; margin-bottom: 22px; display: block; object-fit: cover; max-height: 200px; }
+  .auth-title { font-size: 24px; font-weight: 800; text-align: center; margin: 0 0 4px; color: var(--text-dark); letter-spacing: -0.5px; }
+  .auth-sub { font-size: 14px; text-align: center; color: var(--text-light); margin: 0 0 24px; font-weight: 500; }
+  .auth-err { font-size: 13px; font-weight: 600; color: #C0392B; padding: 10px 14px; background: #FDECEA; border-radius: 10px; margin-bottom: 14px; }
+
+  /* ── Sitter selector pills ── */
+  .sitter-pill {
+    display: flex; align-items: center; gap: 7px;
+    padding: 8px 16px 8px 8px; border-radius: 99px;
+    border: 2px solid var(--border); background: #fff;
+    cursor: pointer; font-family: var(--font); font-size: 14px; font-weight: 700;
+    color: var(--text-dark); transition: all 0.15s;
+  }
+  .sitter-pill:active { transform: scale(0.95); }
+  .sitter-pill.active { border-width: 2px; }
+
+  /* ── User row ── */
+  .user-row {
+    background: #fff; border-radius: var(--r); border: 1px solid var(--border);
+    box-shadow: var(--shadow); padding: 14px; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 12px;
+  }
+
+  /* ── Toggle switch ── */
+  .toggle {
+    width: 38px; height: 22px; border-radius: 99px; border: none;
+    cursor: pointer; position: relative; flex-shrink: 0;
+    transition: background 0.2s; padding: 0;
+  }
+  .toggle-knob {
+    position: absolute; top: 3px; width: 16px; height: 16px;
+    border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    transition: left 0.2s;
+  }
+
+  /* ── Calendar link ── */
+  .cal-link {
+    font-family: var(--font); font-size: 12px; font-weight: 700;
+    padding: 7px 12px; border-radius: 10px;
+    border: 1.5px solid var(--border); color: var(--text-dark);
+    text-decoration: none; background: #fff; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .cal-link:active { background: var(--cream-dark); }
+
+  /* ── Empty state ── */
+  .empty { text-align: center; padding: 40px 20px; color: var(--text-light); font-size: 15px; font-weight: 500; }
+  .empty-icon { font-size: 40px; margin-bottom: 10px; }
+
+  /* ── Saving indicator ── */
+  .saving-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── Schedule rows ── */
+  .sched-row {
+    display: flex; align-items: center; gap: 10px; padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .sched-row:last-child { border-bottom: none; }
+
+  /* ── Payroll cards ── */
+  .pay-card {
+    background: #fff; border-radius: var(--r); border: 1px solid var(--border);
+    box-shadow: var(--shadow); padding: 14px; margin-bottom: 10px;
+  }
+
+  /* ── Fade in ── */
+  @keyframes fadeUp { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
+  .fade-up { animation: fadeUp 0.25s ease both; }
+
+  /* ── Assign bottom sheet ── */
+  .sheet-backdrop {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(44,32,22,0.4);
+    backdrop-filter: blur(2px);
+    animation: fadeIn 0.18s ease;
+  }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  .sheet {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 201;
+    background: #fff; border-radius: 24px 24px 0 0;
+    padding: 0 0 32px;
+    box-shadow: 0 -8px 40px rgba(44,32,22,0.18);
+    animation: slideUp 0.22s cubic-bezier(0.32,0.72,0,1);
+    max-width: 540px; margin: 0 auto;
+  }
+  @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+  .sheet-handle {
+    width: 36px; height: 4px; border-radius: 99px;
+    background: var(--brown-light); margin: 12px auto 0;
+  }
+  .sheet-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sheet-title { font-size: 16px; font-weight: 800; color: var(--text-dark); margin: 0 0 2px; }
+  .sheet-sub { font-size: 13px; font-weight: 500; color: var(--text-light); margin: 0; }
+  .sheet-sitter-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 20px; cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .sheet-sitter-row:last-child { border-bottom: none; }
+  .sheet-sitter-row:active { background: var(--cream); }
+  .sheet-sitter-row.current { background: var(--cream-dark); }
+  .sheet-unassign {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 20px; cursor: pointer;
+    border-top: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .sheet-unassign:active { background: #FDECEA; }
 `;
 
 // ─── App root ────────────────────────────────────────────────────────────────
@@ -159,9 +399,12 @@ export default function App() {
   }
 
   if (!loaded || !slotData || !users) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--color-text-secondary)", fontSize: 14 }}>
-      Loading…
-    </div>
+    <>
+      <style>{CSS}</style>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100dvh", gap: 10, color: "var(--text-mid)", fontSize: 15, fontFamily: "var(--font)", fontWeight: 600 }}>
+        <span style={{ fontSize: 24 }}>🧸</span> Loading…
+      </div>
+    </>
   );
 
   if (!session) return (
@@ -172,31 +415,31 @@ export default function App() {
   );
 
   const isAdmin = session.role === "admin";
+  const name = isAdmin ? session.email.split("@")[0] : session.sitterName || session.email.split("@")[0];
+  const avatarColor = isAdmin ? "#6B5EAD" : sitterColor(session.sitterName, slotData.sitters);
 
   return (
     <>
       <style>{CSS}</style>
-      <div className="sch-wrap">
-        <div className="sch-header">
-          <p className="sch-title">
-            Babysitter scheduler
-            {saving && <span className="sch-saving">saving…</span>}
-          </p>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div className="sch-avatar" style={{ background: isAdmin ? "#7F77DD" : "#1D9E75", width: 26, height: 26, fontSize: 12 }}>{initials(session.email)}</div>
-              <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{session.email.split("@")[0]}</span>
-              <span className={`role-badge ${isAdmin ? "role-admin" : "role-sitter"}`}>{session.role}</span>
-            </div>
-            <button className="sch-icon-btn" title="Sign out" style={{ fontSize: 13, padding: "4px 8px" }} onClick={() => { setSession(null); setTab("slots"); }}>
+      <div className="app-shell">
+        <div className="top-bar">
+          <p className="top-bar-title">bb<span>sit</span> 🧸</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {saving && <div className="saving-dot" title="Saving…" />}
+            <div className="avatar" style={{ background: avatarColor, width: 30, height: 30, fontSize: 13 }}>{initials(name)}</div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-mid)" }}>{name}</span>
+            <button className="signout-btn" onClick={() => { setSession(null); setTab("slots"); }}>
               Sign out
             </button>
           </div>
         </div>
-        {isAdmin
-          ? <AdminApp slotData={slotData} saveSlots={saveSlots} users={users} saveUsers={saveUsers} tab={tab} setTab={setTab} />
-          : <SitterApp slotData={slotData} saveSlots={saveSlots} session={session} />
-        }
+
+        <div className="wrap fade-up">
+          {isAdmin
+            ? <AdminApp slotData={slotData} saveSlots={saveSlots} users={users} saveUsers={saveUsers} tab={tab} setTab={setTab} />
+            : <SitterApp slotData={slotData} saveSlots={saveSlots} session={session} />
+          }
+        </div>
       </div>
     </>
   );
@@ -216,25 +459,27 @@ function LoginScreen({ users, onLogin }) {
   }
 
   return (
-    <div className="auth-wrap">
-      <div className="auth-card">
+    <div className="auth-shell">
+      <div className="auth-card fade-up">
         <img src={HERO_IMG} className="auth-hero" alt="The Babysitters" />
-        <p className="auth-h">Welcome back</p>
-        <p className="auth-sub">Sign in to manage your babysitting schedule</p>
-        {err && <p className="auth-err">{err}</p>}
-        <div className="auth-field">
-          <label className="auth-label">Email</label>
-          <input className="auth-input" type="email" placeholder="you@example.com" value={email}
+        <p className="auth-title">Welcome back 👋</p>
+        <p className="auth-sub">Sign in to manage your schedule</p>
+        {err && <p className="auth-err">⚠️ {err}</p>}
+        <div className="field">
+          <label className="field-label">Email</label>
+          <input className="input" type="email" placeholder="you@example.com" value={email}
             onChange={e => { setEmail(e.target.value); setErr(""); }}
             onKeyDown={e => e.key === "Enter" && login()} />
         </div>
-        <div className="auth-field">
-          <label className="auth-label">Password</label>
-          <input className="auth-input" type="password" placeholder="••••••••" value={password}
+        <div className="field">
+          <label className="field-label">Password</label>
+          <input className="input" type="password" placeholder="••••••••" value={password}
             onChange={e => { setPassword(e.target.value); setErr(""); }}
             onKeyDown={e => e.key === "Enter" && login()} />
         </div>
-        <button className="auth-btn" onClick={login}>Sign in</button>
+        <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", fontSize: 16, padding: "13px" }} onClick={login}>
+          Sign in →
+        </button>
       </div>
     </div>
   );
@@ -245,23 +490,28 @@ function LoginScreen({ users, onLogin }) {
 function AdminApp({ slotData, saveSlots, users, saveUsers, tab, setTab }) {
   const claimed = slotData.slots.filter(sl => sl.claimedBy).length;
   const total = slotData.slots.length;
+  const tabs = ["slots", "sitters", "overview", "payroll", "users"];
+
   return (
     <>
-      <div className="sch-stats">
-        {[["Total slots", total], ["Claimed", claimed], ["Open", total - claimed]].map(([l, v]) => (
-          <div className="sch-stat" key={l}>
-            <p className="sch-stat-label">{l}</p>
-            <p className="sch-stat-val">{v}</p>
+      <div className="stats-row">
+        {[["📋", "Total", total], ["✅", "Claimed", claimed], ["🟢", "Open", total - claimed]].map(([icon, l, v]) => (
+          <div className="stat-card" key={l}>
+            <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
+            <div className="stat-val">{v}</div>
+            <div className="stat-lbl">{l}</div>
           </div>
         ))}
       </div>
-      <div className="sch-tabs">
-        {["slots", "sitters", "overview", "payroll", "users"].map(t => (
-          <button key={t} className={"sch-tab" + (tab === t ? " active" : "")} onClick={() => setTab(t)}>
+
+      <div className="tab-bar">
+        {tabs.map(t => (
+          <button key={t} className={"tab-btn" + (tab === t ? " active" : "")} onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
       </div>
+
       {tab === "slots"    && <SlotsTab data={slotData} save={saveSlots} />}
       {tab === "sitters"  && <SittersTab data={slotData} save={saveSlots} />}
       {tab === "overview" && <OverviewTab data={slotData} unclaimSlot={id => saveSlots({ ...slotData, slots: slotData.slots.map(s => s.id === id ? { ...s, claimedBy: null } : s) })} />}
@@ -281,7 +531,9 @@ function SitterApp({ slotData, saveSlots, session }) {
   function claimSlot(id) {
     const slot = slotData.slots.find(s => s.id === id);
     if (slot.claimedBy) return;
-    const today = new Date(); const claimedAt = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`; saveSlots({ ...slotData, slots: slotData.slots.map(s => s.id === id ? { ...s, claimedBy: name, claimedAt } : s) });
+    const today = new Date();
+    const claimedAt = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    saveSlots({ ...slotData, slots: slotData.slots.map(s => s.id === id ? { ...s, claimedBy: name, claimedAt } : s) });
   }
 
   function unclaimSlot(id) {
@@ -289,44 +541,49 @@ function SitterApp({ slotData, saveSlots, session }) {
   }
 
   const visibleSlots = [...slotData.slots]
-    .filter(sl => {
-      if (sl.freeNight && !FREE_NIGHT_SITTERS.includes(name)) return false;
-      return true;
-    })
+    .filter(sl => !(sl.freeNight && !FREE_NIGHT_SITTERS.includes(name)))
     .sort((a, b) => a.date.localeCompare(b.date));
 
   return (
     <>
-      <div className="sch-tabs">
+      <div className="tab-bar">
         {["slots", "payroll"].map(t => (
-          <button key={t} className={"sch-tab" + (tab === t ? " active" : "")} onClick={() => setTab(t)}>
-            {t.charAt(0).toUpperCase() + t.slice(1)}
+          <button key={t} className={"tab-btn" + (tab === t ? " active" : "")} onClick={() => setTab(t)}>
+            {t === "slots" ? "📅 Slots" : "💰 Payroll"}
           </button>
         ))}
       </div>
+
       {tab === "slots" && (
         <>
-          {visibleSlots.length === 0 && <p className="sch-empty">No slots available.</p>}
-          {visibleSlots.map(sl => {
-            const mine = sl.claimedBy === name, taken = sl.claimedBy && !mine;
-            return (
-              <div className="sch-slot" key={sl.id} style={{ opacity: taken ? 0.45 : 1 }}>
-                <div className="sch-slot-dot" style={{ background: mine ? color : taken ? "var(--color-border-secondary)" : "#1D9E75" }} />
-                <div className="sch-slot-body">
-                  <p className="sch-slot-date">{fmtDate(sl.date)}</p>
-                  <p className="sch-slot-time">{sl.start} – {sl.end}</p>
-                </div>
-                <div className="sch-slot-right">
-                  {taken
-                    ? <span className="sch-taken-badge">Taken</span>
-                    : mine
-                      ? <button className="sch-btn" style={{ fontSize: 12 }} onClick={() => unclaimSlot(sl.id)}>Unclaim</button>
-                      : <button className="sch-btn-primary" style={{ fontSize: 12 }} onClick={() => claimSlot(sl.id)}>Claim</button>
-                  }
-                </div>
-              </div>
-            );
-          })}
+          {visibleSlots.length === 0
+            ? <div className="empty"><div className="empty-icon">📭</div>No slots available right now.</div>
+            : visibleSlots.map(sl => {
+                const mine = sl.claimedBy === name;
+                const taken = sl.claimedBy && !mine;
+                const hour = parseInt(sl.start.split(":")[0]);
+                const icon = hour >= 19 ? "🌙" : hour >= 17 ? "🌆" : "☀️";
+                return (
+                  <div className="slot-card" key={sl.id} style={{ opacity: taken ? 0.5 : 1 }}>
+                    <div className="slot-icon" style={{ background: mine ? color + "20" : taken ? "var(--cream-dark)" : "var(--green-light)" }}>
+                      <span>{icon}</span>
+                    </div>
+                    <div className="slot-body">
+                      <p className="slot-date">{fmtDate(sl.date)}</p>
+                      <p className="slot-time">{sl.start} – {sl.end}</p>
+                    </div>
+                    <div className="slot-right">
+                      {taken
+                        ? <span className="badge badge-taken">Taken</span>
+                        : mine
+                          ? <button className="btn btn-sm" onClick={() => unclaimSlot(sl.id)}>Unclaim</button>
+                          : <button className="btn btn-sm btn-green" onClick={() => claimSlot(sl.id)}>Claim ✓</button>
+                      }
+                    </div>
+                  </div>
+                );
+              })
+          }
         </>
       )}
       {tab === "payroll" && <Payroll data={slotData} save={saveSlots} fixedSitter={name} readOnly />}
@@ -336,13 +593,64 @@ function SitterApp({ slotData, saveSlots, session }) {
 
 // ─── Slots tab ────────────────────────────────────────────────────────────────
 
+
+// --- Assign Sheet ---
+
+function AssignSheet({ slot, sitters, onAssign, onClose }) {
+  if (!slot) return null;
+  const hour = parseInt(slot.start.split(":")[0]);
+  const timeIcon = hour >= 19 ? "🌙" : hour >= 17 ? "🌆" : "☀️";
+
+  return (
+    <>
+      <div className="sheet-backdrop" onClick={onClose} />
+      <div className="sheet">
+        <div className="sheet-handle" />
+        <div className="sheet-header">
+          <p className="sheet-title">{timeIcon} {fmtDate(slot.date)}</p>
+          <p className="sheet-sub">{slot.start} – {slot.end} · Assign to a sitter</p>
+        </div>
+        {sitters.map(name => {
+          const color = sitterColor(name, sitters);
+          const isCurrent = slot.claimedBy === name;
+          return (
+            <div key={name} className={"sheet-sitter-row" + (isCurrent ? " current" : "")}
+              onClick={() => { onAssign(slot.id, name); onClose(); }}>
+              <div className="avatar" style={{ background: color, width: 40, height: 40, fontSize: 17 }}>{initials(name)}</div>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-dark)" }}>{name}</p>
+                {isCurrent && <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--text-light)" }}>Currently assigned</p>}
+              </div>
+              {isCurrent
+                ? <span style={{ fontSize: 20 }}>✓</span>
+                : <span style={{ fontSize: 16, color: "var(--text-light)" }}>→</span>
+              }
+            </div>
+          );
+        })}
+        {slot.claimedBy && (
+          <div className="sheet-unassign" onClick={() => { onAssign(slot.id, null); onClose(); }}>
+            <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#FDECEA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>×</div>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#C0392B" }}>Remove assignment</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 function SlotsTab({ data, save }) {
   const schedule = data.schedule || defaultSchedule;
   const [newSlot, setNewSlot] = useState({ date: "", start: "09:00", end: "17:00", freeNight: false });
+  const [assignSlot, setAssignSlot] = useState(null);
   const [genMonth, setGenMonth] = useState(() => {
     const d = new Date(); d.setMonth(d.getMonth() + 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
+
+  function assignToSitter(slotId, sitterName) {
+    save({ ...data, slots: data.slots.map(s => s.id === slotId ? { ...s, claimedBy: sitterName } : s) });
+  }
 
   function saveSchedule(s) { save({ ...data, schedule: s }); }
   function toggleDay(i) { const s = [...schedule]; s[i] = { ...s[i], on: !s[i].on }; saveSchedule(s); }
@@ -397,65 +705,95 @@ function SlotsTab({ data, save }) {
 
   return (
     <>
-      <p style={{ fontSize: 11, fontWeight: 500, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Weekly recurring schedule</p>
-      <div className="sch-slot" style={{ flexDirection: "column", gap: 0, padding: "4px 16px", marginBottom: 16 }}>
+      <p className="section-label">📆 Weekly recurring schedule</p>
+      <div className="card" style={{ padding: "4px 16px" }}>
         {schedule.map((rec, i) => (
-          <div key={rec.day} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: i < 6 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
-            <div onClick={() => toggleDay(i)} style={{ width: 32, height: 18, borderRadius: 99, background: rec.on ? "#7F77DD" : "var(--color-border-secondary)", border: `0.5px solid ${rec.on ? "#7F77DD" : "var(--color-border-primary)"}`, cursor: "pointer", position: "relative", flexShrink: 0, transition: "background 0.15s" }}>
-              <div style={{ position: "absolute", top: 3, left: rec.on ? "auto" : "3px", right: rec.on ? "3px" : "auto", width: 12, height: 12, borderRadius: "50%", background: "#fff" }} />
-            </div>
-            <span style={{ width: 32, fontSize: 13, fontWeight: 500, color: rec.on ? "var(--color-text-primary)" : "var(--color-text-secondary)" }}>{rec.day}</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, opacity: rec.on ? 1 : 0.4 }}>
-              <input type="time" className="sch-input" style={{ width: 90, padding: "4px 8px", fontSize: 12 }} value={rec.start} disabled={!rec.on} onChange={e => updateTime(i, "start", e.target.value)} />
-              <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>–</span>
-              <input type="time" className="sch-input" style={{ width: 90, padding: "4px 8px", fontSize: 12 }} value={rec.end} disabled={!rec.on} onChange={e => updateTime(i, "end", e.target.value)} />
+          <div className="sched-row" key={rec.day}>
+            <button
+              className="toggle"
+              style={{ background: rec.on ? "var(--accent)" : "var(--brown-light)" }}
+              onClick={() => toggleDay(i)}
+            >
+              <div className="toggle-knob" style={{ left: rec.on ? "19px" : "3px" }} />
+            </button>
+            <span style={{ width: 34, fontSize: 13, fontWeight: 700, color: rec.on ? "var(--text-dark)" : "var(--text-light)" }}>{rec.day}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, opacity: rec.on ? 1 : 0.35 }}>
+              <input type="time" className="input input-sm" style={{ flex: 1, minWidth: 0 }} value={rec.start} disabled={!rec.on} onChange={e => updateTime(i, "start", e.target.value)} />
+              <span style={{ color: "var(--text-light)", fontWeight: 700 }}>–</span>
+              <input type="time" className="input input-sm" style={{ flex: 1, minWidth: 0 }} value={rec.end} disabled={!rec.on} onChange={e => updateTime(i, "end", e.target.value)} />
             </div>
           </div>
         ))}
       </div>
 
-      <p style={{ fontSize: 11, fontWeight: 500, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Generate slots</p>
-      <div className="sch-slot" style={{ marginBottom: 20, gap: 10 }}>
-        <select className="sch-input" style={{ flex: 1 }} value={genMonth} onChange={e => setGenMonth(e.target.value)}>
+      <p className="section-label">⚡ Generate slots</p>
+      <div className="card" style={{ padding: 14, display: "flex", gap: 10, alignItems: "center" }}>
+        <select className="input" style={{ flex: 1 }} value={genMonth} onChange={e => setGenMonth(e.target.value)}>
           {monthOptions.map(o => <option key={o.val} value={o.val}>{o.lbl}</option>)}
         </select>
-        <button className="sch-btn-primary" style={{ background: "#7F77DD", whiteSpace: "nowrap" }} onClick={generateSlots} disabled={genCount === 0}>
-          {genCount === 0 ? "No new slots" : `Generate ${genCount} slot${genCount !== 1 ? "s" : ""}`}
+        <button className="btn btn-purple btn-sm" onClick={generateSlots} disabled={genCount === 0} style={{ flexShrink: 0 }}>
+          {genCount === 0 ? "No new slots" : `Generate ${genCount}`}
         </button>
       </div>
 
-      <p style={{ fontSize: 11, fontWeight: 500, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>All slots</p>
-      {data.slots.length === 0 && <p className="sch-empty">No slots yet.</p>}
-      {[...data.slots].sort((a, b) => a.date.localeCompare(b.date)).map(sl => {
-        const color = sl.claimedBy ? sitterColor(sl.claimedBy, data.sitters) : "var(--color-border-tertiary)";
-        return (
-          <div className="sch-slot" key={sl.id}>
-            <div className="sch-slot-dot" style={{ background: sl.recurring ? "#7F77DD" : color }} />
-            <div className="sch-slot-body">
-              <p className="sch-slot-date">{fmtDate(sl.date)}</p>
-              <p className="sch-slot-time">{sl.start} – {sl.end}</p>
-            </div>
-            <div className="sch-slot-right">
-              {sl.recurring && <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: "#EEEDFE", color: "#3C3489" }}>recurring</span>}
-              {sl.freeNight && <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: "#FAEEDA", color: "#854F0B" }}>free night</span>}
-              {sl.claimedBy ? <span className="sch-slot-sitter" style={{ background: color }}>{sl.claimedBy}</span> : <span className="sch-open-badge">Open</span>}
-              {sl.claimedBy && <button className="sch-icon-btn" title="Unclaim" onClick={() => save({ ...data, slots: data.slots.map(s => s.id === sl.id ? { ...s, claimedBy: null } : s) })}>↺</button>}
-              <button className="sch-icon-btn" title="Remove" onClick={() => save({ ...data, slots: data.slots.filter(s => s.id !== sl.id) })}>✕</button>
-            </div>
-          </div>
-        );
-      })}
+      <p className="section-label">📋 All slots</p>
+      {data.slots.length === 0
+        ? <div className="empty"><div className="empty-icon">🗓️</div>No slots yet — generate or add one!</div>
+        : [...data.slots].sort((a, b) => a.date.localeCompare(b.date)).map(sl => {
+            const color = sl.claimedBy ? sitterColor(sl.claimedBy, data.sitters) : "#ccc";
+            const hour = parseInt(sl.start.split(":")[0]);
+            const icon = hour >= 19 ? "🌙" : hour >= 17 ? "🌆" : "☀️";
+            return (
+              <div className="slot-card" key={sl.id} style={{ cursor: "pointer" }}
+                onClick={() => setAssignSlot(sl)}>
+                <div className="slot-icon" style={{ background: sl.claimedBy ? color + "25" : "var(--cream-dark)" }}>
+                  {icon}
+                </div>
+                <div className="slot-body">
+                  <p className="slot-date">{fmtDate(sl.date)}</p>
+                  <p className="slot-time">{sl.start} – {sl.end}</p>
+                  <div style={{ display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap" }}>
+                    {sl.recurring && <span className="badge badge-recurring" style={{ fontSize: 11 }}>recurring</span>}
+                    {sl.freeNight && <span className="badge badge-freenight" style={{ fontSize: 11 }}>🌙 free night</span>}
+                  </div>
+                </div>
+                <div className="slot-right" onClick={e => e.stopPropagation()}>
+                  {sl.claimedBy
+                    ? <span className="badge badge-sitter" style={{ background: color }}>{sl.claimedBy}</span>
+                    : <span className="badge badge-open">Open</span>
+                  }
+                  <button className="btn-ghost" title="Assign sitter"
+                    style={{ fontSize: 18, color: "var(--accent)" }}
+                    onClick={e => { e.stopPropagation(); setAssignSlot(sl); }}>
+                    👥
+                  </button>
+                  {sl.claimedBy && (
+                    <button className="btn-ghost" title="Unclaim" onClick={e => { e.stopPropagation(); save({ ...data, slots: data.slots.map(s => s.id === sl.id ? { ...s, claimedBy: null } : s) }); }}>↺</button>
+                  )}
+                  <button className="btn-ghost" title="Remove" onClick={e => { e.stopPropagation(); save({ ...data, slots: data.slots.filter(s => s.id !== sl.id) }); }}>✕</button>
+                </div>
+              </div>
+            );
+          })
+      }
 
-      <div className="sch-add-row">
-        <input type="date" className="sch-input" style={{ flex: "0 0 130px" }} value={newSlot.date} onChange={e => setNewSlot(p => ({ ...p, date: e.target.value }))} />
-        <input type="time" className="sch-input" style={{ width: 88 }} value={newSlot.start} onChange={e => setNewSlot(p => ({ ...p, start: e.target.value }))} />
-        <span style={{ color: "var(--color-text-secondary)", fontSize: 13 }}>–</span>
-        <input type="time" className="sch-input" style={{ width: 88 }} value={newSlot.end} onChange={e => setNewSlot(p => ({ ...p, end: e.target.value }))} />
-        <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--color-text-secondary)", cursor: "pointer", whiteSpace: "nowrap" }}>
+      <AssignSheet
+        slot={assignSlot}
+        sitters={data.sitters}
+        onAssign={assignToSitter}
+        onClose={() => setAssignSlot(null)}
+      />
+
+      <div className="add-row">
+        <input type="date" className="input input-sm" style={{ flex: "1 1 130px" }} value={newSlot.date} onChange={e => setNewSlot(p => ({ ...p, date: e.target.value }))} />
+        <input type="time" className="input input-sm" style={{ flex: "1 1 90px" }} value={newSlot.start} onChange={e => setNewSlot(p => ({ ...p, start: e.target.value }))} />
+        <span style={{ color: "var(--text-light)", fontWeight: 700 }}>–</span>
+        <input type="time" className="input input-sm" style={{ flex: "1 1 90px" }} value={newSlot.end} onChange={e => setNewSlot(p => ({ ...p, end: e.target.value }))} />
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--text-mid)", cursor: "pointer", whiteSpace: "nowrap" }}>
           <input type="checkbox" checked={newSlot.freeNight} onChange={e => setNewSlot(p => ({ ...p, freeNight: e.target.checked }))} />
-          free night
+          Free night
         </label>
-        <button className="sch-btn-primary" onClick={addSlot}>Add</button>
+        <button className="btn btn-primary btn-sm" style={{ marginLeft: "auto" }} onClick={addSlot}>+ Add</button>
       </div>
     </>
   );
@@ -474,7 +812,11 @@ function SittersTab({ data, save }) {
   }
 
   function removeSitter(name) {
-    save({ ...data, sitters: data.sitters.filter(s => s !== name), slots: data.slots.map(sl => sl.claimedBy === name ? { ...sl, claimedBy: null } : sl) });
+    save({
+      ...data,
+      sitters: data.sitters.filter(s => s !== name),
+      slots: data.slots.map(sl => sl.claimedBy === name ? { ...sl, claimedBy: null } : sl)
+    });
   }
 
   return (
@@ -483,21 +825,21 @@ function SittersTab({ data, save }) {
         const color = sitterColor(name, data.sitters);
         const n = data.slots.filter(s => s.claimedBy === name).length;
         return (
-          <div className="sch-sitter-row" key={name}>
-            <div className="sch-avatar-lg" style={{ background: color }}>{initials(name)}</div>
+          <div className="card" key={name} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 10 }}>
+            <div className="avatar" style={{ background: color, width: 44, height: 44, fontSize: 18 }}>{initials(name)}</div>
             <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{name}</p>
-              <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-secondary)" }}>{n} slot{n !== 1 ? "s" : ""} claimed</p>
+              <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-dark)" }}>{name}</p>
+              <p style={{ margin: 0, fontSize: 13, color: "var(--text-light)", fontWeight: 500 }}>{n} slot{n !== 1 ? "s" : ""} claimed</p>
             </div>
-            <button className="sch-icon-btn" onClick={() => removeSitter(name)}>✕</button>
+            <button className="btn-ghost" onClick={() => removeSitter(name)} style={{ fontSize: 18 }}>✕</button>
           </div>
         );
       })}
-      <div className="sch-add-row">
-        <input className="sch-input" style={{ flex: 1 }} placeholder="Sitter name" value={newSitter}
+      <div className="add-row">
+        <input className="input input-sm" style={{ flex: 1 }} placeholder="Sitter name…" value={newSitter}
           onChange={e => setNewSitter(e.target.value)}
           onKeyDown={e => e.key === "Enter" && addSitter()} />
-        <button className="sch-btn-primary" onClick={addSitter}>Add sitter</button>
+        <button className="btn btn-primary btn-sm" onClick={addSitter}>+ Add</button>
       </div>
     </>
   );
@@ -507,17 +849,19 @@ function SittersTab({ data, save }) {
 
 function OverviewTab({ data, unclaimSlot }) {
   const filled = data.slots.filter(sl => sl.claimedBy).sort((a, b) => a.date.localeCompare(b.date));
-  if (!filled.length) return <p className="sch-empty">No slots claimed yet.</p>;
+  if (!filled.length) return (
+    <div className="empty"><div className="empty-icon">👀</div>No slots claimed yet.</div>
+  );
   return filled.map(sl => {
     const color = sitterColor(sl.claimedBy, data.sitters);
     return (
-      <div className="sch-slot" key={sl.id}>
-        <div className="sch-avatar" style={{ background: color, width: 28, height: 28, fontSize: 12 }}>{initials(sl.claimedBy)}</div>
-        <div className="sch-slot-body">
-          <p className="sch-slot-date">{fmtDate(sl.date)}</p>
-          <p className="sch-slot-time">{sl.start} – {sl.end} · {sl.claimedBy}</p>
+      <div className="slot-card" key={sl.id}>
+        <div className="avatar" style={{ background: color, width: 40, height: 40, fontSize: 16 }}>{initials(sl.claimedBy)}</div>
+        <div className="slot-body">
+          <p className="slot-date">{fmtDate(sl.date)}</p>
+          <p className="slot-time">{sl.start} – {sl.end} · <strong>{sl.claimedBy}</strong></p>
         </div>
-        <a href={gcalUrl(sl)} target="_blank" rel="noreferrer" className="sch-cal-link">+ Google Cal</a>
+        <a href={gcalUrl(sl)} target="_blank" rel="noreferrer" className="cal-link">📅 GCal</a>
       </div>
     );
   });
@@ -533,7 +877,6 @@ function Payroll({ data, save, fixedSitter, readOnly }) {
 
   function updateRate(field, val) { save({ ...data, rates: { ...(data.rates || {}), [field]: val } }); }
 
-  // Monthly summary — all sitters
   const allMonthSlots = data.slots.filter(sl => sl.date.startsWith(month));
   const claimedMonthSlots = allMonthSlots.filter(sl => sl.claimedBy);
   const totalOwed = claimedMonthSlots.reduce((sum, sl) => {
@@ -545,7 +888,6 @@ function Payroll({ data, save, fixedSitter, readOnly }) {
     return sum + dayH * dayRate + nightH * nightRate;
   }, 0);
 
-  // Per-sitter breakdown
   const sitter = fixedSitter || selected;
   const color = sitterColor(sitter, data.sitters);
   const monthSlots = data.slots.filter(sl => sl.claimedBy === sitter && sl.date.startsWith(month)).sort((a, b) => a.date.localeCompare(b.date));
@@ -555,58 +897,53 @@ function Payroll({ data, save, fixedSitter, readOnly }) {
 
   return (
     <div>
-      {/* Month selector */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.25rem", flexWrap: "wrap" }}>
-        <select className="sch-input" value={month} onChange={e => setMonth(e.target.value)}>
-          {Array.from({ length: 8 }, (_, i) => {
-            const d = new Date(); d.setMonth(d.getMonth() + 1 - i);
-            const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-            return <option key={val} value={val}>{d.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</option>;
-          })}
-        </select>
-      </div>
+      <select className="input" style={{ marginBottom: 16 }} value={month} onChange={e => setMonth(e.target.value)}>
+        {Array.from({ length: 8 }, (_, i) => {
+          const d = new Date(); d.setMonth(d.getMonth() + 1 - i);
+          const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          return <option key={val} value={val}>{d.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</option>;
+        })}
+      </select>
 
-      {/* Monthly summary — admin only */}
       {!readOnly && (
         <>
-          {/* Rates */}
-          <p style={{ fontSize: 11, fontWeight: 500, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Rates</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: "1.25rem" }}>
-            {[["day", "Day rate (before 19:00)", "#FAC775"], ["night", "Night rate (19:00+)", "#7F77DD"]].map(([field, label, accent]) => (
-              <div key={field} className="sch-stat" style={{ borderLeft: `3px solid ${accent}` }}>
-                <p className="sch-stat-label">{label}</p>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 4 }}>
-                  <span style={{ fontSize: 15, color: "var(--color-text-secondary)" }}>€</span>
-                  <input type="number" min="0" step="0.5" className="sch-input" style={{ width: "100%", fontSize: 20, fontWeight: 500, padding: "2px 4px", border: "none", borderBottom: "1.5px solid var(--color-border-secondary)", borderRadius: 0, background: "transparent" }} value={rates[field] ?? (field === "day" ? 12 : 10)} placeholder="0" onChange={e => updateRate(field, e.target.value)} />
-                  <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>/h</span>
+          <p className="section-label">💶 Rates</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+            {[["day", "☀️ Day rate", "#C4882A", "var(--gold-light)"], ["night", "🌙 Night rate", "var(--purple)", "var(--purple-light)"]].map(([field, label, accent, bg]) => (
+              <div key={field} className="card" style={{ padding: "12px 14px", borderLeft: `3px solid ${accent}`, background: bg }}>
+                <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: accent, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</p>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
+                  <span style={{ fontSize: 14, color: accent, fontWeight: 700 }}>€</span>
+                  <input type="number" min="0" step="0.5" className="input input-sm" style={{ width: "100%", fontSize: 22, fontWeight: 800, padding: "2px 4px", border: "none", borderBottom: `2px solid ${accent}`, borderRadius: 0, background: "transparent", color: accent }} value={rates[field] ?? (field === "day" ? 12 : 10)} onChange={e => updateRate(field, e.target.value)} />
+                  <span style={{ fontSize: 12, color: accent, fontWeight: 700 }}>/h</span>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Summary cards */}
-          <p style={{ fontSize: 11, fontWeight: 500, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Monthly summary</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: "1.5rem" }}>
-            <div className="sch-stat" style={{ background: "var(--color-background-success)", borderLeft: "3px solid #1D9E75" }}>
-              <p className="sch-stat-label" style={{ color: "var(--color-text-success)" }}>Total owed</p>
-              <p className="sch-stat-val" style={{ color: "var(--color-text-success)" }}>€{totalOwed.toFixed(2)}</p>
-              <p style={{ fontSize: 12, color: "var(--color-text-success)", margin: "2px 0 0", opacity: 0.8 }}>{claimedMonthSlots.length} slot{claimedMonthSlots.length !== 1 ? "s" : ""} claimed</p>
+          <p className="section-label">📊 Monthly summary</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+            <div className="card" style={{ padding: "14px", background: "var(--green-light)", borderLeft: "3px solid var(--green)" }}>
+              <p style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 700, color: "var(--green)", textTransform: "uppercase" }}>Total owed</p>
+              <p style={{ margin: "0 0 2px", fontSize: 24, fontWeight: 800, color: "var(--green)" }}>€{totalOwed.toFixed(2)}</p>
+              <p style={{ margin: 0, fontSize: 12, color: "var(--green)", opacity: 0.8, fontWeight: 500 }}>{claimedMonthSlots.length} slot{claimedMonthSlots.length !== 1 ? "s" : ""} claimed</p>
             </div>
-            <div className="sch-stat" style={{ background: "#EEEDFE", borderLeft: "3px solid #7F77DD" }}>
-              <p className="sch-stat-label" style={{ color: "#534AB7" }}>Full month forecast</p>
-              <p className="sch-stat-val" style={{ color: "#534AB7" }}>€{totalForecast.toFixed(2)}</p>
-              <p style={{ fontSize: 12, color: "#534AB7", margin: "2px 0 0", opacity: 0.8 }}>{allMonthSlots.length} slot{allMonthSlots.length !== 1 ? "s" : ""} total</p>
+            <div className="card" style={{ padding: "14px", background: "var(--purple-light)", borderLeft: "3px solid var(--purple)" }}>
+              <p style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 700, color: "var(--purple)", textTransform: "uppercase" }}>Forecast</p>
+              <p style={{ margin: "0 0 2px", fontSize: 24, fontWeight: 800, color: "var(--purple)" }}>€{totalForecast.toFixed(2)}</p>
+              <p style={{ margin: 0, fontSize: 12, color: "var(--purple)", opacity: 0.8, fontWeight: 500 }}>{allMonthSlots.length} slot{allMonthSlots.length !== 1 ? "s" : ""} total</p>
             </div>
           </div>
 
-          {/* Per-sitter selector */}
-          <p style={{ fontSize: 11, fontWeight: 500, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Per sitter</p>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: "1.25rem" }}>
+          <p className="section-label">👤 Per sitter</p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
             {data.sitters.map(name => {
               const c = sitterColor(name, data.sitters); const active = selected === name;
               return (
-                <button key={name} className={"sch-sitter-btn" + (active ? " active" : "")} style={active ? { borderColor: c, background: c + "18" } : {}} onClick={() => setSelected(name)}>
-                  <div className="sch-avatar" style={{ background: c, width: 22, height: 22, fontSize: 11 }}>{initials(name)}</div>
+                <button key={name} className={"sitter-pill" + (active ? " active" : "")}
+                  style={active ? { borderColor: c, background: c + "18" } : {}}
+                  onClick={() => setSelected(name)}>
+                  <div className="avatar" style={{ background: c, width: 24, height: 24, fontSize: 12 }}>{initials(name)}</div>
                   {name}
                 </button>
               );
@@ -615,40 +952,53 @@ function Payroll({ data, save, fixedSitter, readOnly }) {
         </>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: "1.5rem" }}>
-        <div className="sch-stat"><p className="sch-stat-label" style={{ color: "#BA7517" }}>Day hours</p><p className="sch-stat-val">{fmtH(totals.dayH)}h</p>{dayRate > 0 && <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "2px 0 0" }}>€{(totals.dayH * dayRate).toFixed(2)}</p>}</div>
-        <div className="sch-stat"><p className="sch-stat-label" style={{ color: "#534AB7" }}>Night hours</p><p className="sch-stat-val">{fmtH(totals.nightH)}h</p>{nightRate > 0 && <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "2px 0 0" }}>€{(totals.nightH * nightRate).toFixed(2)}</p>}</div>
-        <div className="sch-stat" style={{ background: totalDue > 0 ? "var(--color-background-success)" : "var(--color-background-secondary)" }}>
-          <p className="sch-stat-label" style={{ color: totalDue > 0 ? "var(--color-text-success)" : "var(--color-text-secondary)" }}>Total due</p>
-          <p className="sch-stat-val" style={{ color: totalDue > 0 ? "var(--color-text-success)" : "var(--color-text-primary)" }}>€{totalDue.toFixed(2)}</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 16 }}>
+        <div className="card" style={{ padding: "12px", textAlign: "center" }}>
+          <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "var(--gold)", textTransform: "uppercase" }}>☀️ Day</p>
+          <p style={{ margin: "0 0 2px", fontSize: 22, fontWeight: 800, color: "var(--text-dark)" }}>{fmtH(totals.dayH)}h</p>
+          {dayRate > 0 && <p style={{ margin: 0, fontSize: 12, color: "var(--text-light)", fontWeight: 500 }}>€{(totals.dayH * dayRate).toFixed(2)}</p>}
+        </div>
+        <div className="card" style={{ padding: "12px", textAlign: "center" }}>
+          <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "var(--purple)", textTransform: "uppercase" }}>🌙 Night</p>
+          <p style={{ margin: "0 0 2px", fontSize: 22, fontWeight: 800, color: "var(--text-dark)" }}>{fmtH(totals.nightH)}h</p>
+          {nightRate > 0 && <p style={{ margin: 0, fontSize: 12, color: "var(--text-light)", fontWeight: 500 }}>€{(totals.nightH * nightRate).toFixed(2)}</p>}
+        </div>
+        <div className="card" style={{ padding: "12px", textAlign: "center", background: totalDue > 0 ? "var(--green-light)" : "#fff", borderLeft: totalDue > 0 ? "3px solid var(--green)" : undefined }}>
+          <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: totalDue > 0 ? "var(--green)" : "var(--text-light)", textTransform: "uppercase" }}>💰 Total</p>
+          <p style={{ margin: 0, fontSize: 22, fontWeight: 800, color: totalDue > 0 ? "var(--green)" : "var(--text-dark)" }}>€{totalDue.toFixed(2)}</p>
         </div>
       </div>
 
       {monthSlots.length === 0
-        ? <p className="sch-empty">{sitter} has no claimed slots in {monthName}.</p>
+        ? <div className="empty"><div className="empty-icon">💸</div>{sitter} has no claimed slots in {monthName}.</div>
         : monthSlots.map(sl => {
-          const { dayH, nightH } = calcSplit(sl);
-          const slotTotal = dayH * dayRate + nightH * nightRate;
-          const overnight = () => { const [eh] = sl.end.split(":").map(Number); const [sh] = sl.start.split(":").map(Number); return eh < sh; };
-          return (
-            <div className="sch-slot" key={sl.id} style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div className="sch-slot-dot" style={{ background: color }} />
-                <div style={{ flex: 1 }}>
-                  <p className="sch-slot-date" style={{ margin: 0 }}>{fmtDate(sl.date)}{overnight() && <span style={{ fontSize: 11, marginLeft: 6, padding: "1px 6px", borderRadius: 99, background: "var(--color-background-secondary)", color: "var(--color-text-secondary)" }}>overnight</span>}</p>
-                  <p className="sch-slot-time">{sl.start} – {sl.end}</p>
+            const { dayH, nightH } = calcSplit(sl);
+            const slotTotal = dayH * dayRate + nightH * nightRate;
+            const overnight = parseInt(sl.end.split(":")[0]) < parseInt(sl.start.split(":")[0]);
+            return (
+              <div className="pay-card" key={sl.id}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                  <div className="slot-icon" style={{ background: color + "20", width: 38, height: 38 }}>
+                    {parseInt(sl.start.split(":")[0]) >= 19 ? "🌙" : "☀️"}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-dark)" }}>
+                      {fmtDate(sl.date)}
+                      {overnight && <span className="badge" style={{ fontSize: 10, background: "var(--cream-dark)", color: "var(--text-light)", marginLeft: 6 }}>overnight</span>}
+                    </p>
+                    <p style={{ margin: 0, fontSize: 13, color: "var(--text-mid)", fontWeight: 500 }}>{sl.start} – {sl.end}</p>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--text-dark)" }}>
+                    {dayRate > 0 || nightRate > 0 ? `€${slotTotal.toFixed(2)}` : `${fmtH(dayH + nightH)}h`}
+                  </p>
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{dayRate > 0 || nightRate > 0 ? `€${slotTotal.toFixed(2)}` : `${fmtH(dayH + nightH)}h`}</p>
+                <div style={{ display: "flex", gap: 6, paddingLeft: 48 }}>
+                  {dayH > 0 && <span className="badge badge-freenight" style={{ fontSize: 11 }}>☀️ {fmtH(dayH)}h{dayRate > 0 ? ` · €${(dayH * dayRate).toFixed(2)}` : ""}</span>}
+                  {nightH > 0 && <span className="badge badge-recurring" style={{ fontSize: 11 }}>🌙 {fmtH(nightH)}h{nightRate > 0 ? ` · €${(nightH * nightRate).toFixed(2)}` : ""}</span>}
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 8, paddingLeft: 22 }}>
-                {dayH > 0 && <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: "#FAEEDA", color: "#854F0B" }}>☀ {fmtH(dayH)}h day{dayRate > 0 ? ` · €${(dayH * dayRate).toFixed(2)}` : ""}</span>}
-                {nightH > 0 && <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: "#EEEDFE", color: "#3C3489" }}>☾ {fmtH(nightH)}h night{nightRate > 0 ? ` · €${(nightH * nightRate).toFixed(2)}` : ""}</span>}
-              </div>
-            </div>
-          );
-        })
+            );
+          })
       }
     </div>
   );
@@ -676,35 +1026,38 @@ function UsersTab({ users, saveUsers, sitters }) {
     <div>
       {users.map(u => (
         <div className="user-row" key={u.id}>
-          <div className="sch-avatar-lg" style={{ background: u.role === "admin" ? "#7F77DD" : "#1D9E75", width: 32, height: 32, fontSize: 13 }}>{initials(u.email)}</div>
+          <div className="avatar" style={{ background: u.role === "admin" ? "#6B5EAD" : sitterColor(u.sitterName || u.email, sitters), width: 40, height: 40, fontSize: 16 }}>{initials(u.email)}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</p>
-            <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-secondary)" }}>{u.role === "sitter" && u.sitterName ? `Linked to ${u.sitterName}` : u.role === "admin" ? "Admin access" : ""}</p>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-dark)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</p>
+            <p style={{ margin: 0, fontSize: 12, color: "var(--text-light)", fontWeight: 500 }}>
+              {u.role === "sitter" && u.sitterName ? `Linked to ${u.sitterName}` : u.role === "admin" ? "Admin access" : ""}
+            </p>
           </div>
-          <span className={`role-badge ${u.role === "admin" ? "role-admin" : "role-sitter"}`}>{u.role}</span>
-          <button className="sch-icon-btn" title="Toggle role" style={{ fontSize: 12, padding: "4px 8px" }} onClick={() => toggleRole(u.id)}>⇄</button>
-          <button className="sch-icon-btn" title="Remove" onClick={() => removeUser(u.id)}>✕</button>
+          <span className={"badge " + (u.role === "admin" ? "badge-admin" : "badge-role")}>{u.role}</span>
+          <button className="btn-ghost" title="Toggle role" onClick={() => toggleRole(u.id)}>⇄</button>
+          <button className="btn-ghost" title="Remove" onClick={() => removeUser(u.id)}>✕</button>
         </div>
       ))}
-      <div className="sch-add-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 10 }}>
-        <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)" }}>Add new user</p>
-        {err && <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-danger)", padding: "6px 10px", background: "var(--color-background-danger)", borderRadius: 8 }}>{err}</p>}
+
+      <div className="add-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 10 }}>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--text-mid)" }}>➕ Add new user</p>
+        {err && <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#C0392B", padding: "8px 12px", background: "#FDECEA", borderRadius: 10 }}>⚠️ {err}</p>}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input className="sch-input" style={{ flex: 2, minWidth: 140 }} placeholder="Email" value={newUser.email} onChange={e => { setNewUser(p => ({ ...p, email: e.target.value })); setErr(""); }} />
-          <input className="sch-input" type="password" style={{ flex: 1, minWidth: 100 }} placeholder="Password" value={newUser.password} onChange={e => { setNewUser(p => ({ ...p, password: e.target.value })); setErr(""); }} />
+          <input className="input input-sm" style={{ flex: "2 1 140px" }} placeholder="Email" value={newUser.email} onChange={e => { setNewUser(p => ({ ...p, email: e.target.value })); setErr(""); }} />
+          <input className="input input-sm" type="password" style={{ flex: "1 1 100px" }} placeholder="Password" value={newUser.password} onChange={e => { setNewUser(p => ({ ...p, password: e.target.value })); setErr(""); }} />
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <select className="sch-input" style={{ flex: 1 }} value={newUser.role} onChange={e => setNewUser(p => ({ ...p, role: e.target.value, sitterName: "" }))}>
+          <select className="input input-sm" style={{ flex: 1 }} value={newUser.role} onChange={e => setNewUser(p => ({ ...p, role: e.target.value, sitterName: "" }))}>
             <option value="sitter">Sitter</option>
             <option value="admin">Admin</option>
           </select>
           {newUser.role === "sitter" && (
-            <select className="sch-input" style={{ flex: 1 }} value={newUser.sitterName} onChange={e => setNewUser(p => ({ ...p, sitterName: e.target.value }))}>
+            <select className="input input-sm" style={{ flex: 1 }} value={newUser.sitterName} onChange={e => setNewUser(p => ({ ...p, sitterName: e.target.value }))}>
               <option value="">Link to sitter…</option>
               {sitters.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           )}
-          <button className="sch-btn-primary" onClick={addUser}>Add user</button>
+          <button className="btn btn-primary btn-sm" onClick={addUser}>Add user</button>
         </div>
       </div>
     </div>
