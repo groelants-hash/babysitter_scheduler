@@ -303,20 +303,23 @@ const CSS = `
   @keyframes fadeUp { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
   .fade-up { animation: fadeUp 0.25s ease both; }
 
-  /* ── Assign popover ── */
+  /* ── Assign bottom sheet ── */
   .popover-backdrop {
     position: fixed; inset: 0; z-index: 200;
-    background: transparent;
+    background: rgba(44,32,22,0.4);
+    backdrop-filter: blur(2px);
+    animation: fadeIn 0.18s ease;
   }
-  @keyframes fadeIn { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
   .popover {
-    position: fixed; z-index: 201;
-    background: #fff; border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(44,32,22,0.18), 0 0 0 1px var(--border);
-    min-width: 220px; max-width: 280px;
-    animation: fadeIn 0.15s cubic-bezier(0.32,0.72,0,1);
-    overflow: hidden;
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 201;
+    background: #fff; border-radius: 24px 24px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+    box-shadow: 0 -8px 40px rgba(44,32,22,0.18);
+    animation: slideUp 0.22s cubic-bezier(0.32,0.72,0,1);
+    max-width: 540px; margin: 0 auto;
   }
+  @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
   .sheet-header {
     padding: 12px 16px 10px;
     border-bottom: 1px solid var(--border);
@@ -589,42 +592,19 @@ function SitterApp({ slotData, saveSlots, session }) {
 
 // --- Assign Sheet ---
 
-function AssignSheet({ slot, sitters, onAssign, onClose, anchor }) {
+function AssignSheet({ slot, sitters, onAssign, onClose }) {
   if (!slot) return null;
   const hour = parseInt(slot.start.split(":")[0]);
   const timeIcon = hour >= 19 ? "🌙" : hour >= 17 ? "🌆" : "☀️";
 
-  // Position popover near the clicked button, keeping it within viewport
-  const style = {};
-  if (anchor) {
-    const PAD = 8;
-    const POP_W = 260;
-    const POP_H = 60 + sitters.length * 56 + (slot.claimedBy ? 52 : 0);
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    // Horizontal: prefer right-aligned to anchor, clamp to viewport
-    let left = anchor.right - POP_W;
-    if (left < PAD) left = PAD;
-    if (left + POP_W > vw - PAD) left = vw - POP_W - PAD;
-    // Vertical: prefer below anchor, flip above if not enough room
-    let top = anchor.bottom + PAD;
-    if (top + POP_H > vh - PAD) top = anchor.top - POP_H - PAD;
-    if (top < PAD) top = PAD;
-    style.left = left;
-    style.top = top;
-    style.width = POP_W;
-  } else {
-    style.top = "50%"; style.left = "50%";
-    style.transform = "translate(-50%, -50%)";
-  }
-
   return (
     <>
       <div className="popover-backdrop" onClick={onClose} />
-      <div className="popover" style={style}>
+      <div className="popover">
+        <div style={{ width: 36, height: 4, borderRadius: 99, background: "var(--brown-light)", margin: "12px auto 0" }} />
         <div className="sheet-header">
           <p className="sheet-title">{timeIcon} {fmtDate(slot.date)}</p>
-          <p className="sheet-sub">{slot.start} – {slot.end}</p>
+          <p className="sheet-sub">{slot.start} – {slot.end} · Assign to a sitter</p>
         </div>
         {sitters.map(name => {
           const color = sitterColor(name, sitters);
@@ -632,22 +612,22 @@ function AssignSheet({ slot, sitters, onAssign, onClose, anchor }) {
           return (
             <div key={name} className={"sheet-sitter-row" + (isCurrent ? " current" : "")}
               onClick={() => { onAssign(slot.id, name); onClose(); }}>
-              <div className="avatar" style={{ background: color, width: 32, height: 32, fontSize: 14 }}>{initials(name)}</div>
+              <div className="avatar" style={{ background: color, width: 40, height: 40, fontSize: 17 }}>{initials(name)}</div>
               <div style={{ flex: 1 }}>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-dark)" }}>{name}</p>
-                {isCurrent && <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "var(--text-light)" }}>Currently assigned</p>}
+                <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-dark)" }}>{name}</p>
+                {isCurrent && <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--text-light)" }}>Currently assigned</p>}
               </div>
               {isCurrent
-                ? <span style={{ fontSize: 16 }}>✓</span>
-                : <span style={{ fontSize: 14, color: "var(--text-light)" }}>→</span>
+                ? <span style={{ fontSize: 20 }}>✓</span>
+                : <span style={{ fontSize: 16, color: "var(--text-light)" }}>→</span>
               }
             </div>
           );
         })}
         {slot.claimedBy && (
           <div className="sheet-unassign" onClick={() => { onAssign(slot.id, null); onClose(); }}>
-            <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#FDECEA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>×</div>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#C0392B" }}>Remove assignment</p>
+            <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#FDECEA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>×</div>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#C0392B" }}>Remove assignment</p>
           </div>
         )}
       </div>
@@ -659,7 +639,6 @@ function SlotsTab({ data, save }) {
   const schedule = data.schedule || defaultSchedule;
   const [newSlot, setNewSlot] = useState({ date: "", start: "09:00", end: "17:00", freeNight: false });
   const [assignSlot, setAssignSlot] = useState(null);
-  const [assignAnchor, setAssignAnchor] = useState(null);
   const [genMonth, setGenMonth] = useState(() => {
     const d = new Date(); d.setMonth(d.getMonth() + 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -781,7 +760,7 @@ function SlotsTab({ data, save }) {
                   }
                   <button className="btn-ghost" title="Assign sitter"
                     style={{ fontSize: 18, color: "var(--accent)" }}
-                    onClick={e => { e.stopPropagation(); setAssignAnchor(e.currentTarget.getBoundingClientRect()); setAssignSlot(sl); }}>
+                    onClick={e => { e.stopPropagation(); setAssignSlot(sl); }}>
                     👥
                   </button>
                   {sl.claimedBy && (
@@ -798,8 +777,7 @@ function SlotsTab({ data, save }) {
         slot={assignSlot}
         sitters={data.sitters}
         onAssign={assignToSitter}
-        onClose={() => { setAssignSlot(null); setAssignAnchor(null); }}
-        anchor={assignAnchor}
+        onClose={() => setAssignSlot(null)}
       />
 
       <div className="add-row">
