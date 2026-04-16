@@ -138,7 +138,7 @@ export default async function handler(req, res) {
       const html = buildEmail(adminName, urgentSlots, allUnclaimedThisMonth, appUrl);
 
       return resend.emails.send({
-        from: "Babysitter Scheduler <onboarding@resend.dev>",
+        from: "Babysitter Scheduler <noreply@gautrach.com>",
         to: admin.email,
         subject: `Reminder: ${urgentSlots.length} unclaimed slot${urgentSlots.length > 1 ? "s" : ""} due in 7 days`,
         html,

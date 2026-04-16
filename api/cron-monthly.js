@@ -285,7 +285,7 @@ export default async function handler(req, res) {
       );
 
       return resend.emails.send({
-        from: "Babysitter Scheduler <onboarding@resend.dev>",
+        from: "Babysitter Scheduler <noreply@gautrach.com>",
         to: email,
         cc: adminEmails,
         subject: `Your ${getMonthName(currentMonth)} summary & ${getMonthName(nextMonth)} schedule`,
