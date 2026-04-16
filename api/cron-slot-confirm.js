@@ -123,7 +123,7 @@ export default async function handler(req, res) {
       const html = buildConfirmEmail(slot.claimedBy, slot);
 
       return resend.emails.send({
-        from: "Babysitter Scheduler <onboarding@resend.dev>",
+        from: "Babysitter Scheduler <noreply@gautrach.com>",
         to: sitterUser.email,
         subject: `Please confirm your slot on ${new Date(slot.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`,
         html,
