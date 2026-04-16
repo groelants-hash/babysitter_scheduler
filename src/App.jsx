@@ -35,6 +35,13 @@ function gcalUrl(slot) {
   return `${base}&text=Babysitter+(${slot.claimedBy || ""})&dates=${d}T${ts(slot.start)}00/${d}T${ts(slot.end)}00`;
 }
 
+function icalUrl(slot) {
+  const d = slot.date.replace(/-/g, "");
+  const ts = t => t.replace(":", "");
+  const title = encodeURIComponent(`Babysitting (${slot.claimedBy || ""})`);
+  return `data:text/calendar;charset=utf8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ADTSTART:${d}T${ts(slot.start)}00%0ADTEND:${d}T${ts(slot.end)}00%0ASUMMARY:${title}%0AEND:VEVENT%0AEND:VCALENDAR`;
+}
+
 function calcSplit(slot) {
   const [sh, sm] = slot.start.split(":").map(Number);
   const [eh, em] = slot.end.split(":").map(Number);
@@ -521,7 +528,7 @@ function AdminApp({ slotData, saveSlots, users, saveUsers, tab, setTab }) {
 // ─── Sitter shell ─────────────────────────────────────────────────────────────
 
 function SitterApp({ slotData, saveSlots, session }) {
-  const [tab, setTab] = useState("slots");
+  const [tab, setTab] = useState("overview");
   const name = session.sitterName;
   const color = sitterColor(name, slotData.sitters);
 
@@ -541,15 +548,87 @@ function SitterApp({ slotData, saveSlots, session }) {
     .filter(sl => !(sl.freeNight && !FREE_NIGHT_SITTERS.includes(name)))
     .sort((a, b) => a.date.localeCompare(b.date));
 
+  // Current month overview
+  const currentMonth = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
+  const monthName = new Date(currentMonth + "-02").toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const myMonthSlots = slotData.slots
+    .filter(sl => sl.claimedBy === name && sl.date.startsWith(currentMonth))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const rates = slotData.rates || {};
+  const dayRate = parseFloat(rates.day ?? 12);
+  const nightRate = parseFloat(rates.night ?? 10);
+  const monthTotals = myMonthSlots.reduce((acc, sl) => {
+    if (sl.freeNight) return acc;
+    const { dayH, nightH } = calcSplit(sl);
+    return { dayH: acc.dayH + dayH, nightH: acc.nightH + nightH };
+  }, { dayH: 0, nightH: 0 });
+  const monthEarnings = monthTotals.dayH * dayRate + monthTotals.nightH * nightRate;
+
   return (
     <>
       <div className="tab-bar">
-        {["slots", "payroll"].map(t => (
+        {[["overview", "🗓️ Overview"], ["slots", "📋 Slots"], ["payroll", "💰 Payroll"]].map(([t, label]) => (
           <button key={t} className={"tab-btn" + (tab === t ? " active" : "")} onClick={() => setTab(t)}>
-            {t === "slots" ? "📅 Slots" : "💰 Payroll"}
+            {label}
           </button>
         ))}
       </div>
+
+      {tab === "overview" && (
+        <>
+          <div className="stats-row" style={{ marginBottom: 20 }}>
+            <div className="stat-card">
+              <div style={{ fontSize: 20, marginBottom: 4 }}>📅</div>
+              <div className="stat-val">{myMonthSlots.length}</div>
+              <div className="stat-lbl">My slots</div>
+            </div>
+            <div className="stat-card">
+              <div style={{ fontSize: 20, marginBottom: 4 }}>⏱️</div>
+              <div className="stat-val">{fmtH(monthTotals.dayH + monthTotals.nightH)}<span style={{ fontSize: 16 }}>h</span></div>
+              <div className="stat-lbl">Hours</div>
+            </div>
+            <div className="stat-card" style={{ background: monthEarnings > 0 ? "var(--green-light)" : undefined }}>
+              <div style={{ fontSize: 20, marginBottom: 4 }}>💶</div>
+              <div className="stat-val" style={{ color: monthEarnings > 0 ? "var(--green)" : undefined }}>€{monthEarnings.toFixed(0)}</div>
+              <div className="stat-lbl" style={{ color: monthEarnings > 0 ? "var(--green)" : undefined }}>Earnings</div>
+            </div>
+          </div>
+
+          <p className="section-label">📆 {monthName}</p>
+          {myMonthSlots.length === 0
+            ? <div className="empty"><div className="empty-icon">🌿</div>No slots claimed yet this month.</div>
+            : myMonthSlots.map(sl => {
+                const hour = parseInt(sl.start.split(":")[0]);
+                const icon = hour >= 19 ? "🌙" : hour >= 17 ? "🌆" : "☀️";
+                const { dayH, nightH } = calcSplit(sl);
+                const slotEarnings = sl.freeNight ? 0 : dayH * dayRate + nightH * nightRate;
+                const isPast = sl.date < currentMonth.slice(0,7) + "-" + new Date().getDate().toString().padStart(2,'0') || sl.date < new Date().toISOString().slice(0,10);
+                return (
+                  <div className="slot-card" key={sl.id} style={{ opacity: isPast ? 0.6 : 1 }}>
+                    <div className="slot-icon" style={{ background: color + "20" }}>
+                      <span>{icon}</span>
+                    </div>
+                    <div className="slot-body">
+                      <p className="slot-date">{fmtDate(sl.date)}</p>
+                      <p className="slot-time">{sl.start} – {sl.end}</p>
+                      {sl.freeNight && <span className="badge badge-freenight" style={{ fontSize: 11, marginTop: 4 }}>🌙 free</span>}
+                    </div>
+                    <div className="slot-right" style={{ flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                      {sl.freeNight
+                        ? <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-light)" }}>Free</span>
+                        : <span style={{ fontSize: 14, fontWeight: 800, color: "var(--green)" }}>€{slotEarnings.toFixed(2)}</span>
+                      }
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <a href={gcalUrl(sl)} target="_blank" rel="noreferrer" className="cal-link" style={{ fontSize: 11, padding: "4px 8px" }}>📅 GCal</a>
+                        <a href={icalUrl(sl)} download={`bbsit-${sl.date}.ics`} className="cal-link" style={{ fontSize: 11, padding: "4px 8px" }}>🍎 iCal</a>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+          }
+        </>
+      )}
 
       {tab === "slots" && (
         <>
