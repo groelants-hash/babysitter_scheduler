@@ -1093,7 +1093,7 @@ function TestTab() {
       label: "7-day reminder",
       desc: "Emails admin if any slots are unclaimed and due in 7 days.",
       icon: "⏰",
-      url: "/api/cron",
+      url: "/api/cron?force=1",
     },
     {
       key: "confirm",

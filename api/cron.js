@@ -113,34 +113,48 @@ export default async function handler(req, res) {
     const users = usersRaw || [];
 
     // Find admin users
-    const admins = users.filter(u => u.role === "admin");
+    const admins = users.filter(u => u.role === "admin" && u.email);
     if (admins.length === 0) {
       return res.status(200).json({ message: "No admin users found, nothing sent." });
     }
 
-    // Find slots due in exactly 7 days that are unclaimed
-    const urgentSlots = slotData.slots.filter(sl => !sl.claimedBy && daysUntil(sl.date) === 7);
-    if (urgentSlots.length === 0) {
-      return res.status(200).json({ message: "No unclaimed slots due in 7 days." });
-    }
+    const force = req.query.force === "1";
 
-    // All unclaimed slots this month (for the full reminder list)
+    // All unclaimed upcoming slots
+    const today = new Date().toISOString().slice(0, 10);
     const currentMonth = getCurrentMonth();
     const allUnclaimedThisMonth = slotData.slots
-      .filter(sl => !sl.claimedBy && sl.date.startsWith(currentMonth))
+      .filter(sl => !sl.claimedBy && sl.date >= today)
       .sort((a, b) => a.date.localeCompare(b.date));
+
+    // When forced (test button): send all upcoming unclaimed slots
+    // When running on schedule: only trigger if some are due within 7 days
+    const urgentSlots = slotData.slots.filter(sl => {
+      const d = daysUntil(sl.date);
+      return !sl.claimedBy && d >= 0 && d <= 7;
+    });
+
+    if (!force && urgentSlots.length === 0) {
+      return res.status(200).json({ message: "No unclaimed slots due in the next 7 days." });
+    }
+    if (allUnclaimedThisMonth.length === 0) {
+      return res.status(200).json({ message: "No upcoming unclaimed slots to report." });
+    }
+
+    // When forced, treat all upcoming as "urgent" for the email highlight section
+    const slotsToHighlight = force ? allUnclaimedThisMonth : urgentSlots;
 
     const appUrl = process.env.APP_URL || "https://bbsit.vercel.app";
 
     // Send email to each admin
     const results = await Promise.all(admins.map(async (admin) => {
       const adminName = admin.email.split("@")[0];
-      const html = buildEmail(adminName, urgentSlots, allUnclaimedThisMonth, appUrl);
+      const html = buildEmail(adminName, slotsToHighlight, allUnclaimedThisMonth, appUrl);
 
       return resend.emails.send({
         from: "Babysitter Scheduler <noreply@gautrach.com>",
         to: admin.email,
-        subject: `Reminder: ${urgentSlots.length} unclaimed slot${urgentSlots.length > 1 ? "s" : ""} due in 7 days`,
+        subject: force ? `Unclaimed slots overview — ${slotsToHighlight.length} upcoming` : `Reminder: ${urgentSlots.length} unclaimed slot${urgentSlots.length > 1 ? "s" : ""} due in 7 days`,
         html,
       });
     }));
