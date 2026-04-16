@@ -54,7 +54,7 @@ function buildConfirmEmail(sitterName, slot) {
     <div style="padding:24px 32px 0;">
       <p style="margin:0 0 6px;font-size:15px;color:#111;">Hi ${sitterName},</p>
       <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.6;">
-        Thanks for claiming a slot today! Please confirm the timing below, or let us know if anything changed.
+        Thanks for babysitting today! Please confirm the timing below, or let us know if anything changed.
       </p>
     </div>
 
@@ -69,10 +69,13 @@ function buildConfirmEmail(sitterName, slot) {
 
       <div style="display:flex;flex-direction:column;gap:10px;">
         <a href="${confirmUrl}" style="display:block;text-align:center;background:#1D9E75;color:#fff;font-size:14px;font-weight:500;padding:12px 24px;border-radius:8px;text-decoration:none;">
-          Yes, confirm timing (${slot.start} – ${slot.end})
+          Confirm timing (${slot.start} – ${slot.end})
         </a>
         <a href="${updateUrl}&start=${slot.start}&end=${slot.end}" style="display:block;text-align:center;background:#fff;color:#111;font-size:14px;font-weight:500;padding:12px 24px;border-radius:8px;text-decoration:none;border:0.5px solid #ccc;">
-          No, update timing or leave a comment
+          Update timing
+        </a>
+        <a href="${updateUrl}&start=${slot.start}&end=${slot.end}" style="display:block;text-align:center;background:#fff;color:#111;font-size:14px;font-weight:500;padding:12px 24px;border-radius:8px;text-decoration:none;border:0.5px solid #ccc;">
+          Leave a comment
         </a>
       </div>
     </div>
@@ -103,14 +106,14 @@ export default async function handler(req, res) {
     const users = usersRaw || [];
     const today = todayStr();
 
-    // Find slots claimed today (we track claimedAt, fallback to date match)
+    // Find slots that are happening today AND have been claimed (by anyone, at any time)
     const todaySlots = slotData.slots.filter(sl =>
       sl.claimedBy &&
-      (sl.claimedAt === today || sl.date === today)
+      sl.date === today
     );
 
     if (todaySlots.length === 0) {
-      return res.status(200).json({ message: "No slots claimed today, nothing sent." });
+      return res.status(200).json({ message: "No claimed slots happening today, nothing sent." });
     }
 
     const results = await Promise.all(todaySlots.map(async (slot) => {
@@ -120,7 +123,7 @@ export default async function handler(req, res) {
       const html = buildConfirmEmail(slot.claimedBy, slot);
 
       return resend.emails.send({
-        from: "Babysitter Scheduler <noreply@gautrach.com>",
+        from: "Babysitter Scheduler <onboarding@resend.dev>",
         to: sitterUser.email,
         subject: `Please confirm your slot on ${new Date(slot.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`,
         html,
