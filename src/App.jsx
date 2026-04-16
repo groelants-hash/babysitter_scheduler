@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 const HERO_IMG = "https://i.imgur.com/w6RMVy0.jpeg";
 
@@ -597,7 +598,7 @@ function AssignSheet({ slot, sitters, onAssign, onClose }) {
   const hour = parseInt(slot.start.split(":")[0]);
   const timeIcon = hour >= 19 ? "🌙" : hour >= 17 ? "🌆" : "☀️";
 
-  return (
+  return createPortal(
     <>
       <div className="popover-backdrop" onClick={onClose} />
       <div className="popover">
@@ -631,7 +632,8 @@ function AssignSheet({ slot, sitters, onAssign, onClose }) {
           </div>
         )}
       </div>
-    </>
+    </>,
+    document.body
   );
 }
 
