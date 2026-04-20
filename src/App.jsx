@@ -939,7 +939,10 @@ function OverviewTab({ data, unclaimSlot }) {
           <p className="slot-date">{fmtDate(sl.date)}</p>
           <p className="slot-time">{sl.start} – {sl.end} · <strong>{sl.claimedBy}</strong></p>
         </div>
-        <a href={gcalUrl(sl)} target="_blank" rel="noreferrer" className="cal-link">📅 GCal</a>
+        <div style={{ display: "flex", gap: 6 }}>
+          <a href={gcalUrl(sl)} target="_blank" rel="noreferrer" className="cal-link">📅 GCal</a>
+          <a href={icalUrl(sl)} download={`bbsit-${sl.date}.ics`} className="cal-link">🍎 iCal</a>
+        </div>
       </div>
     );
   });
