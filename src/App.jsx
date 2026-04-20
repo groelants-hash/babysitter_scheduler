@@ -648,6 +648,7 @@ function SitterApp({ slotData, saveSlots, session }) {
                     <div className="slot-body">
                       <p className="slot-date">{fmtDate(sl.date)}</p>
                       <p className="slot-time">{sl.start} – {sl.end}</p>
+                      {sl.freeNight && <span className="badge badge-freenight" style={{ fontSize: 11, marginTop: 4, display: "inline-flex" }}>🌙 free night</span>}
                     </div>
                     <div className="slot-right">
                       {taken
