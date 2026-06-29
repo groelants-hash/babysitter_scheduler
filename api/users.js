@@ -20,4 +20,27 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "POST") {
-    const body = req.b
+    const body = req.body;
+    if (!Array.isArray(body)) {
+      return res.status(400).json({ error: "Invalid payload: expected an array of users." });
+    }
+
+    const force = req.query.force === "1";
+    const current = await redis.get(KEY);
+
+    if (!force) {
+      const warning = checkForSuspiciousShrink(current, body, "users")
+        || (wouldRemoveAllAdmins(current, body)
+          ? "This save would remove every admin account, locking everyone out. If this is intentional, retry with ?force=1."
+          : null);
+      if (warning) return res.status(409).json({ error: warning });
+    }
+
+    await pushBackup(redis, KEY, current);
+    await redis.set(KEY, body);
+    await redis.set(INIT_KEY, "true");
+    return res.status(200).json({ ok: true });
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}

@@ -252,4 +252,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(405).send(htmlPage("Error", `<p style="font-size:14px;color:#888;">Method not allowed.</p>`));
-}  
+}
