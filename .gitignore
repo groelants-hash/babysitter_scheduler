@@ -1,4 +1,8 @@
 .vercel
 node_modules
 dist
-.en
+.env
+.env.*
+.claude
+.git.broken-backup-*
+.git.locked-backup-*
