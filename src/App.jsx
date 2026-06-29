@@ -359,48 +359,128 @@ export default function App() {
   const [users, setUsers] = useState(null);
   const [session, setSession] = useState(null);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState("slots");
 
   useEffect(() => {
     (async () => {
       try {
-        const [sd, ud] = await Promise.all([
-          fetch("/api/data").then(r => r.json()),
-          fetch("/api/users").then(r => r.json()),
+        const [slotsRes, usersRes] = await Promise.all([
+          fetch("/api/data"),
+          fetch("/api/users"),
         ]);
-        setSlotData(sd || defaultSlotData);
-        setUsers(ud || defaultUsers);
-      } catch {
-        setSlotData(defaultSlotData);
-        setUsers(defaultUsers);
+        if (!slotsRes.ok || !usersRes.ok) {
+          throw new Error("The server couldn't load your data right now.");
+        }
+        const [sd, ud] = await Promise.all([slotsRes.json(), usersRes.json()]);
+
+        // `initialized` tells us whether anything has EVER been saved to this
+        // key. If it has, and we're now getting null back, that's data going
+        // missing — not a fresh app. Never paper over that with demo data,
+        // since the next save would silently overwrite whatever's really there.
+        if (sd.data === null && sd.initialized) {
+          throw new Error("Your schedule data is missing from the database. This needs to be restored before continuing — nothing has been changed.");
+        }
+        if (ud.data === null && ud.initialized) {
+          throw new Error("Your user data is missing from the database. This needs to be restored before continuing — nothing has been changed.");
+        }
+
+        setSlotData(sd.data ?? defaultSlotData);
+        setUsers(ud.data ?? defaultUsers);
+        setLoadError(null);
+      } catch (e) {
+        // Fetch/network failure or the missing-data case above: do NOT fall
+        // back to demo data here. Doing so used to let the app load normally
+        // on a hiccup, and the very next save would overwrite real data with
+        // the hardcoded demo set. Show a hard stop instead.
+        setLoadError(e.message || "Failed to load data.");
       }
       setTimeout(() => setLoaded(true), 300);
     })();
   }, []);
 
   async function saveSlots(d) {
-    setSaving(true); setSlotData(d);
+    setSaving(true);
+    const previous = slotData;
+    setSlotData(d);
     try {
-      await fetch("/api/data", {
+      const r = await fetch("/api/data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(d),
       });
-    } catch {}
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        if (r.status === 409 && body.error) {
+          const confirmed = window.confirm(`${body.error}\n\nClick OK to save anyway, or Cancel to undo this change.`);
+          if (confirmed) {
+            const retry = await fetch("/api/data?force=1", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(d),
+            });
+            if (!retry.ok) throw new Error("Save failed even after confirming.");
+            setSaving(false);
+            return;
+          }
+          setSlotData(previous);
+          setSaving(false);
+          return;
+        }
+        throw new Error(body.error || "Save failed.");
+      }
+    } catch (e) {
+      setSlotData(previous);
+      alert(`Couldn't save your changes (${e.message}). Your previous data has been kept — please try again.`);
+    }
     setSaving(false);
   }
 
   async function saveUsers(u) {
+    const previous = users;
     setUsers(u);
     try {
-      await fetch("/api/users", {
+      const r = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(u),
       });
-    } catch {}
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        if (r.status === 409 && body.error) {
+          const confirmed = window.confirm(`${body.error}\n\nClick OK to save anyway, or Cancel to undo this change.`);
+          if (confirmed) {
+            const retry = await fetch("/api/users?force=1", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(u),
+            });
+            if (!retry.ok) throw new Error("Save failed even after confirming.");
+            return;
+          }
+          setUsers(previous);
+          return;
+        }
+        throw new Error(body.error || "Save failed.");
+      }
+    } catch (e) {
+      setUsers(previous);
+      alert(`Couldn't save your changes (${e.message}). Your previous data has been kept — please try again.`);
+    }
   }
+
+  if (loadError) return (
+    <>
+      <style>{CSS}</style>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100dvh", gap: 12, padding: 24, textAlign: "center", color: "var(--text-mid)", fontFamily: "var(--font)" }}>
+        <span style={{ fontSize: 32 }}>⚠️</span>
+        <p style={{ fontSize: 15, fontWeight: 700, maxWidth: 360 }}>Couldn't load the app</p>
+        <p style={{ fontSize: 13, maxWidth: 360 }}>{loadError}</p>
+        <button className="btn btn-primary" onClick={() => window.location.reload()}>Try again</button>
+      </div>
+    </>
+  );
 
   if (!loaded || !slotData || !users) return (
     <>
@@ -1175,62 +1255,4 @@ function TestTab() {
   );
 }
 
-// ─── Users tab ────────────────────────────────────────────────────────────────
-
-function UsersTab({ users, saveUsers, sitters }) {
-  const [newUser, setNewUser] = useState({ email: "", password: "", role: "sitter", sitterName: "" });
-  const [err, setErr] = useState("");
-
-  function addUser() {
-    if (!newUser.email || !newUser.password) { setErr("Email and password required."); return; }
-    if (users.find(u => u.email.toLowerCase() === newUser.email.toLowerCase())) { setErr("Email already exists."); return; }
-    if (newUser.role === "sitter" && !newUser.sitterName) { setErr("Please link this account to a sitter."); return; }
-    saveUsers([...users, { ...newUser, id: uid() }]);
-    setNewUser({ email: "", password: "", role: "sitter", sitterName: "" });
-    setErr("");
-  }
-
-  function removeUser(id) { saveUsers(users.filter(u => u.id !== id)); }
-  function toggleRole(id) { saveUsers(users.map(u => u.id === id ? { ...u, role: u.role === "admin" ? "sitter" : "admin" } : u)); }
-
-  return (
-    <div>
-      {users.map(u => (
-        <div className="user-row" key={u.id}>
-          <div className="avatar" style={{ background: u.role === "admin" ? "#6B5EAD" : sitterColor(u.sitterName || u.email, sitters), width: 40, height: 40, fontSize: 16 }}>{initials(u.email)}</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-dark)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</p>
-            <p style={{ margin: 0, fontSize: 12, color: "var(--text-light)", fontWeight: 500 }}>
-              {u.role === "sitter" && u.sitterName ? `Linked to ${u.sitterName}` : u.role === "admin" ? "Admin access" : ""}
-            </p>
-          </div>
-          <span className={"badge " + (u.role === "admin" ? "badge-admin" : "badge-role")}>{u.role}</span>
-          <button className="btn-ghost" title="Toggle role" onClick={() => toggleRole(u.id)}>⇄</button>
-          <button className="btn-ghost" title="Remove" onClick={() => removeUser(u.id)}>✕</button>
-        </div>
-      ))}
-
-      <div className="add-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 10 }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--text-mid)" }}>➕ Add new user</p>
-        {err && <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#C0392B", padding: "8px 12px", background: "#FDECEA", borderRadius: 10 }}>⚠️ {err}</p>}
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input className="input input-sm" style={{ flex: "2 1 140px" }} placeholder="Email" value={newUser.email} onChange={e => { setNewUser(p => ({ ...p, email: e.target.value })); setErr(""); }} />
-          <input className="input input-sm" type="password" style={{ flex: "1 1 100px" }} placeholder="Password" value={newUser.password} onChange={e => { setNewUser(p => ({ ...p, password: e.target.value })); setErr(""); }} />
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <select className="input input-sm" style={{ flex: 1 }} value={newUser.role} onChange={e => setNewUser(p => ({ ...p, role: e.target.value, sitterName: "" }))}>
-            <option value="sitter">Sitter</option>
-            <option value="admin">Admin</option>
-          </select>
-          {newUser.role === "sitter" && (
-            <select className="input input-sm" style={{ flex: 1 }} value={newUser.sitterName} onChange={e => setNewUser(p => ({ ...p, sitterName: e.target.value }))}>
-              <option value="">Link to sitter…</option>
-              {sitters.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          )}
-          <button className="btn btn-primary btn-sm" onClick={addUser}>Add user</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+// ─── Users tab ─────────────────────────────────────────────────────────────�

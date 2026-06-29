@@ -1,10 +1,7 @@
-import { Redis } from "@upstash/redis";
 import { Resend } from "resend";
+import { redis } from "./_lib/redis.js";
+import { pushBackup } from "./_lib/backup.js";
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const SLOTS_KEY = "babysitter:slots";
@@ -151,6 +148,7 @@ export default async function handler(req, res) {
     // Already confirmed
     if (action === "confirm") {
       const updated = { ...slotData, slots: slotData.slots.map(s => s.id === slotId ? { ...s, confirmed: true } : s) };
+      await pushBackup(redis, SLOTS_KEY, slotsRaw);
       await redis.set(SLOTS_KEY, updated);
       return res.status(200).send(htmlPage("Confirmed!", `
         <div class="success">Your slot has been confirmed. See you then!</div>
@@ -224,6 +222,7 @@ export default async function handler(req, res) {
     };
 
     const updatedData = { ...slotData, slots: slotData.slots.map(s => s.id === slotId ? updatedSlot : s) };
+    await pushBackup(redis, SLOTS_KEY, slotsRaw);
     await redis.set(SLOTS_KEY, updatedData);
 
     // Notify admins if anything changed
@@ -253,4 +252,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(405).send(htmlPage("Error", `<p style="font-size:14px;color:#888;">Method not allowed.</p>`));
-}
+}  

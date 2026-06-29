@@ -1,10 +1,5 @@
-import { Redis } from "@upstash/redis";
 import { Resend } from "resend";
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
+import { redis } from "./_lib/redis.js";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -303,3 +298,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: err.message });
   }
 }
+                                                                                                                        

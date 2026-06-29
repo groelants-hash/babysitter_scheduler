@@ -1,11 +1,8 @@
-import { Redis } from "@upstash/redis";
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
+import { redis } from "./_lib/redis.js";
+import { pushBackup, checkForSuspiciousShrink, wouldRemoveAllAdmins } from "./_lib/backup.js";
 
 const KEY = "babysitter:users";
+const INIT_KEY = "babysitter:users:initialized";
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -15,14 +12,12 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   if (req.method === "GET") {
-    const data = await redis.get(KEY);
-    return res.status(200).json(data || null);
+    const [data, initialized] = await Promise.all([
+      redis.get(KEY),
+      redis.get(INIT_KEY),
+    ]);
+    return res.status(200).json({ data: data ?? null, initialized: !!initialized });
   }
 
   if (req.method === "POST") {
-    await redis.set(KEY, req.body);
-    return res.status(200).json({ ok: true });
-  }
-
-  return res.status(405).json({ error: "Method not allowed" });
-}
+    const body = req.b
