@@ -1088,10 +1088,76 @@ function AssignSheet({ slot, sitters, onAssign, onClose }) {
   );
 }
 
+function EditSlotSheet({ slot, onSave, onClose }) {
+  const [date, setDate] = useState("");
+  const [start, setStart] = useState("");
+  const [end, setEnd] = useState("");
+  const [freeNight, setFreeNight] = useState(false);
+  const [err, setErr] = useState("");
+
+  // Re-seed the form fields whenever a new slot is opened for editing.
+  useEffect(() => {
+    if (slot) {
+      setDate(slot.date);
+      setStart(slot.start);
+      setEnd(slot.end);
+      setFreeNight(!!slot.freeNight);
+      setErr("");
+    }
+  }, [slot]);
+
+  if (!slot) return null;
+
+  function submit() {
+    if (!date || !start || !end) { setErr("Date, start, and end are all required."); return; }
+    onSave(slot.id, { date, start, end, freeNight });
+    onClose();
+  }
+
+  return createPortal(
+    <>
+      <div className="popover-backdrop" onClick={onClose} />
+      <div className="popover">
+        <div style={{ width: 36, height: 4, borderRadius: 99, background: "var(--brown-light)", margin: "12px auto 0" }} />
+        <div className="sheet-header">
+          <p className="sheet-title">✏️ Edit slot</p>
+          <p className="sheet-sub">{slot.claimedBy ? `Currently assigned to ${slot.claimedBy}` : "Update the date or time"}</p>
+        </div>
+        <div style={{ padding: 16 }}>
+          {err && <p className="auth-err">⚠️ {err}</p>}
+          <div className="field">
+            <label className="field-label">Date</label>
+            <input type="date" className="input" value={date} onChange={e => { setDate(e.target.value); setErr(""); }} />
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <div className="field" style={{ flex: 1 }}>
+              <label className="field-label">Start</label>
+              <input type="time" className="input" value={start} onChange={e => { setStart(e.target.value); setErr(""); }} />
+            </div>
+            <div className="field" style={{ flex: 1 }}>
+              <label className="field-label">End</label>
+              <input type="time" className="input" value={end} onChange={e => { setEnd(e.target.value); setErr(""); }} />
+            </div>
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "var(--text-mid)", cursor: "pointer", margin: "4px 0 16px" }}>
+            <input type="checkbox" checked={freeNight} onChange={e => setFreeNight(e.target.checked)} />
+            Free night
+          </label>
+          <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={submit}>
+            Save changes
+          </button>
+        </div>
+      </div>
+    </>,
+    document.body
+  );
+}
+
 function SlotsTab({ data, save }) {
   const schedule = data.schedule || defaultSchedule;
   const [newSlot, setNewSlot] = useState({ date: "", start: "09:00", end: "17:00", freeNight: false });
   const [assignSlot, setAssignSlot] = useState(null);
+  const [editSlot, setEditSlot] = useState(null);
   const [genMonth, setGenMonth] = useState(() => {
     const d = new Date(); d.setMonth(d.getMonth() + 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -1099,6 +1165,10 @@ function SlotsTab({ data, save }) {
 
   function assignToSitter(slotId, sitterName) {
     save({ ...data, slots: data.slots.map(s => s.id === slotId ? { ...s, claimedBy: sitterName } : s) });
+  }
+
+  function updateSlot(slotId, patch) {
+    save({ ...data, slots: data.slots.map(s => s.id === slotId ? { ...s, ...patch } : s) });
   }
 
   function saveSchedule(s) { save({ ...data, schedule: s }); }
@@ -1216,6 +1286,10 @@ function SlotsTab({ data, save }) {
                     onClick={e => { e.stopPropagation(); setAssignSlot(sl); }}>
                     👥
                   </button>
+                  <button className="btn-ghost" title="Edit date/time"
+                    onClick={e => { e.stopPropagation(); setEditSlot(sl); }}>
+                    ✏️
+                  </button>
                   {sl.claimedBy && (
                     <button className="btn-ghost" title="Unclaim" onClick={e => { e.stopPropagation(); save({ ...data, slots: data.slots.map(s => s.id === sl.id ? { ...s, claimedBy: null } : s) }); }}>↺</button>
                   )}
@@ -1231,6 +1305,12 @@ function SlotsTab({ data, save }) {
         sitters={data.sitters}
         onAssign={assignToSitter}
         onClose={() => setAssignSlot(null)}
+      />
+
+      <EditSlotSheet
+        slot={editSlot}
+        onSave={updateSlot}
+        onClose={() => setEditSlot(null)}
       />
 
       <div className="add-row">
