@@ -364,6 +364,16 @@ export default function App() {
   const [loadError, setLoadError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState("slots");
+  const [showChangePw, setShowChangePw] = useState(false);
+  // A password-reset email link looks like /?reset=<token>. Capture it once
+  // on first render — this takes priority over the normal login/app flow
+  // regardless of whether a session is already active on this device.
+  const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.search).get("reset"));
+
+  function clearResetToken() {
+    setResetToken(null);
+    window.history.replaceState({}, "", window.location.pathname);
+  }
 
   // Restore a saved session (from a previous visit) before doing anything else.
   useEffect(() => {
@@ -515,6 +525,13 @@ export default function App() {
     }
   }
 
+  if (resetToken) return (
+    <>
+      <style>{CSS}</style>
+      <ResetPasswordScreen token={resetToken} onDone={clearResetToken} />
+    </>
+  );
+
   if (!authChecked) return (
     <>
       <style>{CSS}</style>
@@ -567,6 +584,9 @@ export default function App() {
             {saving && <div className="saving-dot" title="Saving…" />}
             <div className="avatar" style={{ background: avatarColor, width: 30, height: 30, fontSize: 13 }}>{initials(name)}</div>
             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-mid)" }}>{name}</span>
+            <button className="signout-btn" onClick={() => setShowChangePw(true)}>
+              Change password
+            </button>
             <button className="signout-btn" onClick={handleLogout}>
               Sign out
             </button>
@@ -579,6 +599,8 @@ export default function App() {
             : <SitterApp slotData={slotData} saveSlots={saveSlots} session={session} />
           }
         </div>
+
+        {showChangePw && <ChangePasswordSheet token={token} onClose={() => setShowChangePw(false)} />}
       </div>
     </>
   );
@@ -587,6 +609,7 @@ export default function App() {
 // ─── Login ───────────────────────────────────────────────────────────────────
 
 function LoginScreen({ onLogin }) {
+  const [mode, setMode] = useState("login"); // "login" | "forgot" | "forgot-sent"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
@@ -611,6 +634,58 @@ function LoginScreen({ onLogin }) {
     }
   }
 
+  async function sendResetLink() {
+    if (busy) return;
+    setErr("");
+    setBusy(true);
+    try {
+      await fetch("/api/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      // The endpoint always returns a generic success regardless of whether
+      // the email matched an account — same message either way here.
+      setMode("forgot-sent");
+    } catch (e) {
+      setErr("Couldn't reach the server. Please try again.");
+    }
+    setBusy(false);
+  }
+
+  if (mode === "forgot" || mode === "forgot-sent") {
+    return (
+      <div className="auth-shell">
+        <div className="auth-card fade-up">
+          <img src={HERO_IMG} className="auth-hero" alt="The Babysitters" />
+          <p className="auth-title">Reset your password</p>
+          <p className="auth-sub">
+            {mode === "forgot-sent"
+              ? "If an account exists for that email, a reset link is on its way."
+              : "Enter your email and we'll send you a reset link."}
+          </p>
+          {err && <p className="auth-err">⚠️ {err}</p>}
+          {mode === "forgot" && (
+            <>
+              <div className="field">
+                <label className="field-label">Email</label>
+                <input className="input" type="email" placeholder="you@example.com" value={email}
+                  onChange={e => { setEmail(e.target.value); setErr(""); }}
+                  onKeyDown={e => e.key === "Enter" && sendResetLink()} />
+              </div>
+              <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", fontSize: 16, padding: "13px" }} onClick={sendResetLink} disabled={busy}>
+                {busy ? "Sending…" : "Send reset link →"}
+              </button>
+            </>
+          )}
+          <button className="btn" style={{ width: "100%", justifyContent: "center", marginTop: 10 }} onClick={() => { setMode("login"); setErr(""); }}>
+            ← Back to sign in
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="auth-shell">
       <div className="auth-card fade-up">
@@ -633,6 +708,152 @@ function LoginScreen({ onLogin }) {
         <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", fontSize: 16, padding: "13px" }} onClick={login} disabled={busy}>
           {busy ? "Signing in…" : "Sign in →"}
         </button>
+        <button className="btn" style={{ width: "100%", justifyContent: "center", marginTop: 10, border: "none", background: "transparent", color: "var(--text-light)", fontSize: 13, fontWeight: 600 }}
+          onClick={() => { setMode("forgot"); setErr(""); }}>
+          Forgot password?
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Change password (signed-in user) ─────────────────────────────────────────
+
+function ChangePasswordSheet({ token, onClose }) {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [err, setErr] = useState("");
+  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function submit() {
+    if (busy) return;
+    setErr("");
+    if (newPassword !== confirmPassword) { setErr("New passwords don't match."); return; }
+    setBusy(true);
+    try {
+      const r = await fetch("/api/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) { setErr(body.error || "Couldn't change your password."); setBusy(false); return; }
+      setDone(true);
+    } catch (e) {
+      setErr("Couldn't reach the server. Please try again.");
+    }
+    setBusy(false);
+  }
+
+  return createPortal(
+    <>
+      <div className="popover-backdrop" onClick={onClose} />
+      <div className="popover">
+        <div style={{ width: 36, height: 4, borderRadius: 99, background: "var(--brown-light)", margin: "12px auto 0" }} />
+        <div className="sheet-header">
+          <p className="sheet-title">🔒 Change password</p>
+          <p className="sheet-sub">{done ? "All set." : "Enter your current password and a new one."}</p>
+        </div>
+        <div style={{ padding: 16 }}>
+          {done ? (
+            <>
+              <p style={{ margin: "0 0 14px", fontSize: 13, color: "var(--text-mid)" }}>Your password has been updated.</p>
+              <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={onClose}>Done</button>
+            </>
+          ) : (
+            <>
+              {err && <p className="auth-err">⚠️ {err}</p>}
+              <div className="field">
+                <label className="field-label">Current password</label>
+                <input className="input" type="password" placeholder="••••••••" value={currentPassword}
+                  onChange={e => { setCurrentPassword(e.target.value); setErr(""); }} />
+              </div>
+              <div className="field">
+                <label className="field-label">New password</label>
+                <input className="input" type="password" placeholder="At least 6 characters" value={newPassword}
+                  onChange={e => { setNewPassword(e.target.value); setErr(""); }} />
+              </div>
+              <div className="field">
+                <label className="field-label">Confirm new password</label>
+                <input className="input" type="password" placeholder="••••••••" value={confirmPassword}
+                  onChange={e => { setConfirmPassword(e.target.value); setErr(""); }}
+                  onKeyDown={e => e.key === "Enter" && submit()} />
+              </div>
+              <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={submit} disabled={busy}>
+                {busy ? "Saving…" : "Update password"}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </>,
+    document.body
+  );
+}
+
+// ─── Reset password (from email link) ──────────────────────────────────────────
+
+function ResetPasswordScreen({ token, onDone }) {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [err, setErr] = useState("");
+  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function submit() {
+    if (busy) return;
+    setErr("");
+    if (newPassword !== confirmPassword) { setErr("Passwords don't match."); return; }
+    setBusy(true);
+    try {
+      const r = await fetch("/api/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, newPassword }),
+      });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) { setErr(body.error || "Couldn't reset your password."); setBusy(false); return; }
+      setDone(true);
+    } catch (e) {
+      setErr("Couldn't reach the server. Please try again.");
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div className="auth-shell">
+      <div className="auth-card fade-up">
+        <img src={HERO_IMG} className="auth-hero" alt="The Babysitters" />
+        <p className="auth-title">{done ? "Password updated ✅" : "Choose a new password"}</p>
+        {!done && <p className="auth-sub">Enter a new password for your account.</p>}
+        {err && <p className="auth-err">⚠️ {err}</p>}
+        {done ? (
+          <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", fontSize: 16, padding: "13px" }} onClick={onDone}>
+            Go to sign in →
+          </button>
+        ) : (
+          <>
+            <div className="field">
+              <label className="field-label">New password</label>
+              <input className="input" type="password" placeholder="At least 6 characters" value={newPassword}
+                onChange={e => { setNewPassword(e.target.value); setErr(""); }} />
+            </div>
+            <div className="field">
+              <label className="field-label">Confirm new password</label>
+              <input className="input" type="password" placeholder="••••••••" value={confirmPassword}
+                onChange={e => { setConfirmPassword(e.target.value); setErr(""); }}
+                onKeyDown={e => e.key === "Enter" && submit()} />
+            </div>
+            <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", fontSize: 16, padding: "13px" }} onClick={submit} disabled={busy}>
+              {busy ? "Saving…" : "Update password →"}
+            </button>
+            <button className="btn" style={{ width: "100%", justifyContent: "center", marginTop: 10 }} onClick={onDone}>
+              ← Back to sign in
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
