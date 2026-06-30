@@ -1,5 +1,6 @@
 import { redis } from "./_lib/redis.js";
 import { pushBackup, checkForSuspiciousShrink } from "./_lib/backup.js";
+import { getSession } from "./_lib/auth.js";
 
 const KEY = "babysitter:slots";
 const INIT_KEY = "babysitter:slots:initialized";
@@ -7,9 +8,14 @@ const INIT_KEY = "babysitter:slots:initialized";
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
   if (req.method === "OPTIONS") return res.status(200).end();
+
+  // Schedule data is shared by sitters and admins alike, but it's still
+  // private to the household — any signed-in user, not the public internet.
+  const session = await getSession(redis, req);
+  if (!session) return res.status(401).json({ error: "Sign-in required." });
 
   if (req.method === "GET") {
     const [data, initialized] = await Promise.all([

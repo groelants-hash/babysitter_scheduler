@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@upstash/redis": "^1.28.0",
+    "bcryptjs": "^2.4.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "resend": "^6.11.0"

@@ -358,22 +358,65 @@ export default function App() {
   const [slotData, setSlotData] = useState(null);
   const [users, setUsers] = useState(null);
   const [session, setSession] = useState(null);
+  const [token, setToken] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState("slots");
 
+  // Restore a saved session (from a previous visit) before doing anything else.
   useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("bbsit_session") || "null");
+      if (saved && saved.token && saved.user) {
+        setToken(saved.token);
+        setSession(saved.user);
+      }
+    } catch {}
+    setAuthChecked(true);
+  }, []);
+
+  function handleLogin(newToken, user) {
+    setToken(newToken);
+    setSession(user);
+    try { localStorage.setItem("bbsit_session", JSON.stringify({ token: newToken, user })); } catch {}
+  }
+
+  function handleLogout() {
+    if (token) {
+      fetch("/api/logout", { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+    }
+    setSession(null);
+    setToken(null);
+    setSlotData(null);
+    setUsers(null);
+    setLoaded(false);
+    setLoadError(null);
+    try { localStorage.removeItem("bbsit_session"); } catch {}
+    setTab("slots");
+  }
+
+  useEffect(() => {
+    if (!session || !token) return;
     (async () => {
       try {
-        const [slotsRes, usersRes] = await Promise.all([
-          fetch("/api/data"),
-          fetch("/api/users"),
-        ]);
-        if (!slotsRes.ok || !usersRes.ok) {
+        const authHeader = { Authorization: `Bearer ${token}` };
+        const wantsUsers = session.role === "admin";
+        const requests = [fetch("/api/data", { headers: authHeader })];
+        if (wantsUsers) requests.push(fetch("/api/users", { headers: authHeader }));
+        const [slotsRes, usersRes] = await Promise.all(requests);
+
+        if (slotsRes.status === 401 || (usersRes && usersRes.status === 401)) {
+          // Session expired or was revoked server-side — sign out cleanly.
+          handleLogout();
+          return;
+        }
+        if (!slotsRes.ok || (usersRes && !usersRes.ok)) {
           throw new Error("The server couldn't load your data right now.");
         }
-        const [sd, ud] = await Promise.all([slotsRes.json(), usersRes.json()]);
+        const sd = await slotsRes.json();
+        const ud = usersRes ? await usersRes.json() : null;
 
         // `initialized` tells us whether anything has EVER been saved to this
         // key. If it has, and we're now getting null back, that's data going
@@ -382,12 +425,12 @@ export default function App() {
         if (sd.data === null && sd.initialized) {
           throw new Error("Your schedule data is missing from the database. This needs to be restored before continuing — nothing has been changed.");
         }
-        if (ud.data === null && ud.initialized) {
+        if (ud && ud.data === null && ud.initialized) {
           throw new Error("Your user data is missing from the database. This needs to be restored before continuing — nothing has been changed.");
         }
 
         setSlotData(sd.data ?? defaultSlotData);
-        setUsers(ud.data ?? defaultUsers);
+        if (ud) setUsers(ud.data ?? defaultUsers);
         setLoadError(null);
       } catch (e) {
         // Fetch/network failure or the missing-data case above: do NOT fall
@@ -398,7 +441,7 @@ export default function App() {
       }
       setTimeout(() => setLoaded(true), 300);
     })();
-  }, []);
+  }, [session, token]);
 
   async function saveSlots(d) {
     setSaving(true);
@@ -407,17 +450,18 @@ export default function App() {
     try {
       const r = await fetch("/api/data", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(d),
       });
       if (!r.ok) {
         const body = await r.json().catch(() => ({}));
+        if (r.status === 401) { handleLogout(); return; }
         if (r.status === 409 && body.error) {
           const confirmed = window.confirm(`${body.error}\n\nClick OK to save anyway, or Cancel to undo this change.`);
           if (confirmed) {
             const retry = await fetch("/api/data?force=1", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
               body: JSON.stringify(d),
             });
             if (!retry.ok) throw new Error("Save failed even after confirming.");
@@ -443,17 +487,18 @@ export default function App() {
     try {
       const r = await fetch("/api/users", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(u),
       });
       if (!r.ok) {
         const body = await r.json().catch(() => ({}));
+        if (r.status === 401) { handleLogout(); return; }
         if (r.status === 409 && body.error) {
           const confirmed = window.confirm(`${body.error}\n\nClick OK to save anyway, or Cancel to undo this change.`);
           if (confirmed) {
             const retry = await fetch("/api/users?force=1", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
               body: JSON.stringify(u),
             });
             if (!retry.ok) throw new Error("Save failed even after confirming.");
@@ -470,6 +515,22 @@ export default function App() {
     }
   }
 
+  if (!authChecked) return (
+    <>
+      <style>{CSS}</style>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100dvh", gap: 10, color: "var(--text-mid)", fontSize: 15, fontFamily: "var(--font)", fontWeight: 600 }}>
+        <span style={{ fontSize: 24 }}>🧸</span> Loading…
+      </div>
+    </>
+  );
+
+  if (!session) return (
+    <>
+      <style>{CSS}</style>
+      <LoginScreen onLogin={handleLogin} />
+    </>
+  );
+
   if (loadError) return (
     <>
       <style>{CSS}</style>
@@ -482,19 +543,13 @@ export default function App() {
     </>
   );
 
-  if (!loaded || !slotData || !users) return (
+  const wantsUsers = session.role === "admin";
+  if (!loaded || !slotData || (wantsUsers && !users)) return (
     <>
       <style>{CSS}</style>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100dvh", gap: 10, color: "var(--text-mid)", fontSize: 15, fontFamily: "var(--font)", fontWeight: 600 }}>
         <span style={{ fontSize: 24 }}>🧸</span> Loading…
       </div>
-    </>
-  );
-
-  if (!session) return (
-    <>
-      <style>{CSS}</style>
-      <LoginScreen users={users} onLogin={setSession} />
     </>
   );
 
@@ -512,7 +567,7 @@ export default function App() {
             {saving && <div className="saving-dot" title="Saving…" />}
             <div className="avatar" style={{ background: avatarColor, width: 30, height: 30, fontSize: 13 }}>{initials(name)}</div>
             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-mid)" }}>{name}</span>
-            <button className="signout-btn" onClick={() => { setSession(null); setTab("slots"); }}>
+            <button className="signout-btn" onClick={handleLogout}>
               Sign out
             </button>
           </div>
@@ -531,15 +586,29 @@ export default function App() {
 
 // ─── Login ───────────────────────────────────────────────────────────────────
 
-function LoginScreen({ users, onLogin }) {
+function LoginScreen({ onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  function login() {
-    const u = users.find(u => u.email.toLowerCase() === email.trim().toLowerCase() && u.password === password);
-    if (!u) { setErr("Incorrect email or password."); return; }
-    onLogin(u);
+  async function login() {
+    if (busy) return;
+    setErr("");
+    setBusy(true);
+    try {
+      const r = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) { setErr(body.error || "Incorrect email or password."); setBusy(false); return; }
+      onLogin(body.token, body.user);
+    } catch (e) {
+      setErr("Couldn't reach the server. Please try again.");
+      setBusy(false);
+    }
   }
 
   return (
@@ -561,8 +630,8 @@ function LoginScreen({ users, onLogin }) {
             onChange={e => { setPassword(e.target.value); setErr(""); }}
             onKeyDown={e => e.key === "Enter" && login()} />
         </div>
-        <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", fontSize: 16, padding: "13px" }} onClick={login}>
-          Sign in →
+        <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", fontSize: 16, padding: "13px" }} onClick={login} disabled={busy}>
+          {busy ? "Signing in…" : "Sign in →"}
         </button>
       </div>
     </div>
@@ -1255,4 +1324,62 @@ function TestTab() {
   );
 }
 
-// ─── Users tab ─────────────────────────────────────────────────────────────�
+// ─── Users tab ────────────────────────────────────────────────────────────────
+
+function UsersTab({ users, saveUsers, sitters }) {
+  const [newUser, setNewUser] = useState({ email: "", password: "", role: "sitter", sitterName: "" });
+  const [err, setErr] = useState("");
+
+  function addUser() {
+    if (!newUser.email || !newUser.password) { setErr("Email and password required."); return; }
+    if (users.find(u => u.email.toLowerCase() === newUser.email.toLowerCase())) { setErr("Email already exists."); return; }
+    if (newUser.role === "sitter" && !newUser.sitterName) { setErr("Please link this account to a sitter."); return; }
+    saveUsers([...users, { ...newUser, id: uid() }]);
+    setNewUser({ email: "", password: "", role: "sitter", sitterName: "" });
+    setErr("");
+  }
+
+  function removeUser(id) { saveUsers(users.filter(u => u.id !== id)); }
+  function toggleRole(id) { saveUsers(users.map(u => u.id === id ? { ...u, role: u.role === "admin" ? "sitter" : "admin" } : u)); }
+
+  return (
+    <div>
+      {users.map(u => (
+        <div className="user-row" key={u.id}>
+          <div className="avatar" style={{ background: u.role === "admin" ? "#6B5EAD" : sitterColor(u.sitterName || u.email, sitters), width: 40, height: 40, fontSize: 16 }}>{initials(u.email)}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-dark)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</p>
+            <p style={{ margin: 0, fontSize: 12, color: "var(--text-light)", fontWeight: 500 }}>
+              {u.role === "sitter" && u.sitterName ? `Linked to ${u.sitterName}` : u.role === "admin" ? "Admin access" : ""}
+            </p>
+          </div>
+          <span className={"badge " + (u.role === "admin" ? "badge-admin" : "badge-role")}>{u.role}</span>
+          <button className="btn-ghost" title="Toggle role" onClick={() => toggleRole(u.id)}>⇄</button>
+          <button className="btn-ghost" title="Remove" onClick={() => removeUser(u.id)}>✕</button>
+        </div>
+      ))}
+
+      <div className="add-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 10 }}>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--text-mid)" }}>➕ Add new user</p>
+        {err && <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#C0392B", padding: "8px 12px", background: "#FDECEA", borderRadius: 10 }}>⚠️ {err}</p>}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input className="input input-sm" style={{ flex: "2 1 140px" }} placeholder="Email" value={newUser.email} onChange={e => { setNewUser(p => ({ ...p, email: e.target.value })); setErr(""); }} />
+          <input className="input input-sm" type="password" style={{ flex: "1 1 100px" }} placeholder="Password" value={newUser.password} onChange={e => { setNewUser(p => ({ ...p, password: e.target.value })); setErr(""); }} />
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <select className="input input-sm" style={{ flex: 1 }} value={newUser.role} onChange={e => setNewUser(p => ({ ...p, role: e.target.value, sitterName: "" }))}>
+            <option value="sitter">Sitter</option>
+            <option value="admin">Admin</option>
+          </select>
+          {newUser.role === "sitter" && (
+            <select className="input input-sm" style={{ flex: 1 }} value={newUser.sitterName} onChange={e => setNewUser(p => ({ ...p, sitterName: e.target.value }))}>
+              <option value="">Link to sitter…</option>
+              {sitters.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
+          <button className="btn btn-primary btn-sm" onClick={addUser}>Add user</button>
+        </div>
+      </div>
+    </div>
+  );
+}
