@@ -595,7 +595,7 @@ export default function App() {
 
         <div className="wrap fade-up">
           {isAdmin
-            ? <AdminApp slotData={slotData} saveSlots={saveSlots} users={users} saveUsers={saveUsers} tab={tab} setTab={setTab} />
+            ? <AdminApp slotData={slotData} saveSlots={saveSlots} users={users} saveUsers={saveUsers} tab={tab} setTab={setTab} token={token} />
             : <SitterApp slotData={slotData} saveSlots={saveSlots} session={session} />
           }
         </div>
@@ -861,7 +861,7 @@ function ResetPasswordScreen({ token, onDone }) {
 
 // ─── Admin shell ─────────────────────────────────────────────────────────────
 
-function AdminApp({ slotData, saveSlots, users, saveUsers, tab, setTab }) {
+function AdminApp({ slotData, saveSlots, users, saveUsers, tab, setTab, token }) {
   const claimed = slotData.slots.filter(sl => sl.claimedBy).length;
   const total = slotData.slots.length;
   const tabs = ["slots", "sitters", "overview", "payroll", "users", "test"];
@@ -886,7 +886,7 @@ function AdminApp({ slotData, saveSlots, users, saveUsers, tab, setTab }) {
         ))}
       </div>
 
-      {tab === "slots"    && <SlotsTab data={slotData} save={saveSlots} />}
+      {tab === "slots"    && <SlotsTab data={slotData} save={saveSlots} users={users} token={token} />}
       {tab === "sitters"  && <SittersTab data={slotData} save={saveSlots} />}
       {tab === "overview" && <OverviewTab data={slotData} unclaimSlot={id => saveSlots({ ...slotData, slots: slotData.slots.map(s => s.id === id ? { ...s, claimedBy: null } : s) })} />}
       {tab === "payroll"  && <Payroll data={slotData} save={saveSlots} />}
@@ -1153,11 +1153,12 @@ function EditSlotSheet({ slot, onSave, onClose }) {
   );
 }
 
-function SlotsTab({ data, save }) {
+function SlotsTab({ data, save, users, token }) {
   const schedule = data.schedule || defaultSchedule;
   const [newSlot, setNewSlot] = useState({ date: "", start: "09:00", end: "17:00", freeNight: false });
   const [assignSlot, setAssignSlot] = useState(null);
   const [editSlot, setEditSlot] = useState(null);
+  const [showSend, setShowSend] = useState(false);
   const [genMonth, setGenMonth] = useState(() => {
     const d = new Date(); d.setMonth(d.getMonth() + 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -1255,7 +1256,10 @@ function SlotsTab({ data, save }) {
         </button>
       </div>
 
-      <p className="section-label">📋 All slots</p>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 20, marginBottom: 10 }}>
+        <p className="section-label" style={{ margin: 0 }}>📋 All slots</p>
+        <button className="btn btn-sm btn-purple" onClick={() => setShowSend(true)}>📧 Send slots to bbsit</button>
+      </div>
       {data.slots.length === 0
         ? <div className="empty"><div className="empty-icon">🗓️</div>No slots yet — generate or add one!</div>
         : [...data.slots].sort((a, b) => a.date.localeCompare(b.date)).map(sl => {
@@ -1313,6 +1317,15 @@ function SlotsTab({ data, save }) {
         onClose={() => setEditSlot(null)}
       />
 
+      {showSend && (
+        <SendSlotsSheet
+          data={data}
+          users={users}
+          token={token}
+          onClose={() => setShowSend(false)}
+        />
+      )}
+
       <div className="add-row">
         <input type="date" className="input input-sm" style={{ flex: "1 1 130px" }} value={newSlot.date} onChange={e => setNewSlot(p => ({ ...p, date: e.target.value }))} />
         <input type="time" className="input input-sm" style={{ flex: "1 1 90px" }} value={newSlot.start} onChange={e => setNewSlot(p => ({ ...p, start: e.target.value }))} />
@@ -1325,6 +1338,153 @@ function SlotsTab({ data, save }) {
         <button className="btn btn-primary btn-sm" style={{ marginLeft: "auto" }} onClick={addSlot}>+ Add</button>
       </div>
     </>
+  );
+}
+
+// --- Send slots to bbsit sheet ---
+
+function SendSlotsSheet({ data, users, token, onClose }) {
+  const openSlots = [...data.slots].filter(sl => !sl.claimedBy).sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+  const sitterUsers = (users || []).filter(u => u.role === "sitter" && u.email);
+
+  const [step, setStep] = useState(1);
+  const [selectedSlots, setSelectedSlots] = useState(() => new Set(openSlots.map(sl => sl.id)));
+  const [selectedUsers, setSelectedUsers] = useState(() => new Set(sitterUsers.map(u => u.id)));
+  const [sending, setSending] = useState(false);
+  const [err, setErr] = useState("");
+  const [result, setResult] = useState(null);
+
+  function toggleSlot(id) {
+    setSelectedSlots(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleUser(id) {
+    setSelectedUsers(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  async function send() {
+    if (sending) return;
+    setSending(true);
+    setErr("");
+    try {
+      const r = await fetch("/api/notify-open-slots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ slotIds: [...selectedSlots], userIds: [...selectedUsers] }),
+      });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) { setErr(body.error || "Couldn't send the email."); setSending(false); return; }
+      setResult(body.message || "Sent!");
+    } catch (e) {
+      setErr("Couldn't reach the server. Please try again.");
+    }
+    setSending(false);
+  }
+
+  return createPortal(
+    <>
+      <div className="popover-backdrop" onClick={onClose} />
+      <div className="popover">
+        <div style={{ width: 36, height: 4, borderRadius: 99, background: "var(--brown-light)", margin: "12px auto 0" }} />
+
+        {result ? (
+          <>
+            <div className="sheet-header">
+              <p className="sheet-title">✅ Sent!</p>
+              <p className="sheet-sub">{result}</p>
+            </div>
+            <div style={{ padding: 16 }}>
+              <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={onClose}>Done</button>
+            </div>
+          </>
+        ) : step === 1 ? (
+          <>
+            <div className="sheet-header">
+              <p className="sheet-title">📧 Send slots to bbsit</p>
+              <p className="sheet-sub">Step 1 of 2 · Select open slots to offer</p>
+            </div>
+            <div style={{ padding: "10px 16px 0", display: "flex", justifyContent: "flex-end" }}>
+              <button className="btn-ghost" style={{ fontSize: 12, fontWeight: 700 }}
+                onClick={() => setSelectedSlots(selectedSlots.size === openSlots.length ? new Set() : new Set(openSlots.map(sl => sl.id)))}>
+                {selectedSlots.size === openSlots.length ? "Deselect all" : "Select all"}
+              </button>
+            </div>
+            <div style={{ maxHeight: "50vh", overflowY: "auto" }}>
+              {openSlots.length === 0
+                ? <p style={{ padding: "16px", fontSize: 13, color: "var(--text-light)" }}>No open slots to offer right now — every slot is claimed.</p>
+                : openSlots.map(sl => {
+                    const hour = parseInt(sl.start.split(":")[0]);
+                    const icon = hour >= 19 ? "🌙" : hour >= 17 ? "🌆" : "☀️";
+                    return (
+                      <label key={sl.id} className="sheet-sitter-row" style={{ cursor: "pointer" }}>
+                        <input type="checkbox" checked={selectedSlots.has(sl.id)} onChange={() => toggleSlot(sl.id)} style={{ width: 18, height: 18, flexShrink: 0 }} />
+                        <span style={{ fontSize: 18, flexShrink: 0 }}>{icon}</span>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-dark)" }}>{fmtDate(sl.date)}</p>
+                          <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--text-light)" }}>{sl.start} – {sl.end}</p>
+                        </div>
+                      </label>
+                    );
+                  })
+              }
+            </div>
+            <div style={{ padding: 16, display: "flex", gap: 10 }}>
+              <button className="btn" style={{ flex: 1, justifyContent: "center" }} onClick={onClose}>Cancel</button>
+              <button className="btn btn-primary" style={{ flex: 2, justifyContent: "center" }} disabled={selectedSlots.size === 0} onClick={() => setStep(2)}>
+                Next ({selectedSlots.size}) →
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="sheet-header">
+              <p className="sheet-title">👥 Choose recipients</p>
+              <p className="sheet-sub">Step 2 of 2 · All bbsit selected by default — unselect any to exclude</p>
+            </div>
+            {err && <div style={{ padding: "10px 16px 0" }}><p className="auth-err">⚠️ {err}</p></div>}
+            <div style={{ padding: "10px 16px 0", display: "flex", justifyContent: "flex-end" }}>
+              <button className="btn-ghost" style={{ fontSize: 12, fontWeight: 700 }}
+                onClick={() => setSelectedUsers(selectedUsers.size === sitterUsers.length ? new Set() : new Set(sitterUsers.map(u => u.id)))}>
+                {selectedUsers.size === sitterUsers.length ? "Deselect all" : "Select all"}
+              </button>
+            </div>
+            <div style={{ maxHeight: "50vh", overflowY: "auto" }}>
+              {sitterUsers.length === 0
+                ? <p style={{ padding: "16px", fontSize: 13, color: "var(--text-light)" }}>No sitter accounts with an email on file yet.</p>
+                : sitterUsers.map(u => {
+                    const color = sitterColor(u.sitterName || u.email, data.sitters);
+                    return (
+                      <label key={u.id} className="sheet-sitter-row" style={{ cursor: "pointer" }}>
+                        <input type="checkbox" checked={selectedUsers.has(u.id)} onChange={() => toggleUser(u.id)} style={{ width: 18, height: 18, flexShrink: 0 }} />
+                        <div className="avatar" style={{ background: color, width: 36, height: 36, fontSize: 15 }}>{initials(u.sitterName || u.email)}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-dark)" }}>{u.sitterName || u.email.split("@")[0]}</p>
+                          <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--text-light)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</p>
+                        </div>
+                      </label>
+                    );
+                  })
+              }
+            </div>
+            <div style={{ padding: 16, display: "flex", gap: 10 }}>
+              <button className="btn" style={{ flex: 1, justifyContent: "center" }} onClick={() => setStep(1)}>← Back</button>
+              <button className="btn btn-primary" style={{ flex: 2, justifyContent: "center" }} disabled={selectedUsers.size === 0 || sending} onClick={send}>
+                {sending ? "Sending…" : `Send email (${selectedUsers.size})`}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </>,
+    document.body
   );
 }
 
