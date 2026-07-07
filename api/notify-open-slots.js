@@ -107,18 +107,36 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "None of the selected recipients have an email on file." });
     }
 
-    const results = await Promise.all(recipients.map(u => {
+    // The Resend SDK resolves with { data, error } for API-level failures
+    // (e.g. an unverified sending domain, a malformed address) rather than
+    // throwing — only network/transport failures throw. So both cases have
+    // to be checked to know whether an email actually went out, otherwise
+    // this endpoint would report "sent" even when nothing was delivered.
+    const results = await Promise.all(recipients.map(async (u) => {
       const sitterName = u.sitterName || u.email.split("@")[0];
-      return resend.emails.send({
-        from: "Babysitter Scheduler <noreply@gautrach.com>",
-        to: u.email,
-        subject: `${slots.length} open slot${slots.length > 1 ? "s" : ""} available`,
-        html: buildEmail(sitterName, slots),
-      }).catch(err => ({ error: err.message, to: u.email }));
+      try {
+        const r = await resend.emails.send({
+          from: "Babysitter Scheduler <noreply@gautrach.com>",
+          to: u.email,
+          subject: `${slots.length} open slot${slots.length > 1 ? "s" : ""} available`,
+          html: buildEmail(sitterName, slots),
+        });
+        if (r.error) return { to: u.email, ok: false, error: r.error.message || String(r.error) };
+        return { to: u.email, ok: true, id: r.data?.id };
+      } catch (err) {
+        return { to: u.email, ok: false, error: err.message };
+      }
     }));
 
+    const succeeded = results.filter(r => r.ok);
+    const failed = results.filter(r => !r.ok);
+
     return res.status(200).json({
-      message: `Sent to ${recipients.length} sitter${recipients.length > 1 ? "s" : ""} about ${slots.length} slot${slots.length > 1 ? "s" : ""}.`,
+      message: failed.length === 0
+        ? `Sent to ${succeeded.length} sitter${succeeded.length > 1 ? "s" : ""} about ${slots.length} slot${slots.length > 1 ? "s" : ""}.`
+        : `Sent to ${succeeded.length} of ${recipients.length} sitter(s) — ${failed.length} failed: ${failed.map(f => f.to).join(", ")}.`,
+      succeeded: succeeded.length,
+      failed,
       results,
     });
   } catch (err) {

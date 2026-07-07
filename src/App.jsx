@@ -1382,7 +1382,7 @@ function SendSlotsSheet({ data, users, token, onClose }) {
       });
       const body = await r.json().catch(() => ({}));
       if (!r.ok) { setErr(body.error || "Couldn't send the email."); setSending(false); return; }
-      setResult(body.message || "Sent!");
+      setResult({ message: body.message || "Sent!", failed: body.failed || [] });
     } catch (e) {
       setErr("Couldn't reach the server. Please try again.");
     }
@@ -1398,10 +1398,17 @@ function SendSlotsSheet({ data, users, token, onClose }) {
         {result ? (
           <>
             <div className="sheet-header">
-              <p className="sheet-title">✅ Sent!</p>
-              <p className="sheet-sub">{result}</p>
+              <p className="sheet-title">{result.failed.length === 0 ? "✅ Sent!" : "⚠️ Sent with errors"}</p>
+              <p className="sheet-sub">{result.message}</p>
             </div>
             <div style={{ padding: 16 }}>
+              {result.failed.length > 0 && (
+                <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 10, background: "#FDECEA" }}>
+                  {result.failed.map(f => (
+                    <p key={f.to} style={{ margin: "2px 0", fontSize: 12, color: "#C0392B", fontWeight: 600 }}>{f.to}: {f.error}</p>
+                  ))}
+                </div>
+              )}
               <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={onClose}>Done</button>
             </div>
           </>
