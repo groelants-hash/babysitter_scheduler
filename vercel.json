@@ -12,5 +12,12 @@
       "path": "/api/cron-slot-confirm",
       "schedule": "0 23 * * *"
     }
+  ],
+  "rewrites": [
+    { "source": "/api/login", "destination": "/api/auth?action=login" },
+    { "source": "/api/logout", "destination": "/api/auth?action=logout" },
+    { "source": "/api/change-password", "destination": "/api/auth?action=change-password" },
+    { "source": "/api/forgot-password", "destination": "/api/auth?action=forgot-password" },
+    { "source": "/api/reset-password", "destination": "/api/auth?action=reset-password" }
   ]
 }

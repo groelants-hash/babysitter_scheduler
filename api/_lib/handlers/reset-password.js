@@ -1,6 +1,6 @@
-import { redis } from "./_lib/redis.js";
-import { pushBackup } from "./_lib/backup.js";
-import { hashPassword } from "./_lib/auth.js";
+import { redis } from "../redis.js";
+import { pushBackup } from "../backup.js";
+import { hashPassword } from "../auth.js";
 
 const USERS_KEY = "babysitter:users";
 const RESET_PREFIX = "babysitter:reset:";

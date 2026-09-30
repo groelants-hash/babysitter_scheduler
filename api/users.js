@@ -1,9 +1,8 @@
-import { Resend } from "resend";
+import { resend } from "./_lib/email.js";
 import { redis } from "./_lib/redis.js";
 import { pushBackup, checkForSuspiciousShrink, wouldRemoveAllAdmins } from "./_lib/backup.js";
 import { getSession, hashPassword } from "./_lib/auth.js";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 const KEY = "babysitter:users";
 const INIT_KEY = "babysitter:users:initialized";

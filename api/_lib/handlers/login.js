@@ -1,5 +1,5 @@
-import { redis } from "./_lib/redis.js";
-import { verifyPassword, hashPassword, isHashed, createSession } from "./_lib/auth.js";
+import { redis } from "../redis.js";
+import { verifyPassword, hashPassword, isHashed, createSession } from "../auth.js";
 
 const KEY = "babysitter:users";
 

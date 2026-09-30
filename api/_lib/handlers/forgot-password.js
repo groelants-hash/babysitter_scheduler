@@ -1,8 +1,7 @@
-import { Resend } from "resend";
+import { resend } from "../email.js";
 import crypto from "crypto";
-import { redis } from "./_lib/redis.js";
+import { redis } from "../redis.js";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 const USERS_KEY = "babysitter:users";
 const RESET_PREFIX = "babysitter:reset:";
