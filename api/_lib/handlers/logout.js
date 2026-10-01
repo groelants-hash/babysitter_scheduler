@@ -1,5 +1,5 @@
-import { redis } from "./_lib/redis.js";
-import { destroySession } from "./_lib/auth.js";
+import { redis } from "../redis.js";
+import { destroySession } from "../auth.js";
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");

@@ -1,8 +1,7 @@
-import { Resend } from "resend";
+import { resend } from "./_lib/email.js";
 import { redis } from "./_lib/redis.js";
 import { getSession } from "./_lib/auth.js";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 const SLOTS_KEY = "babysitter:slots";
 const USERS_KEY = "babysitter:users";
