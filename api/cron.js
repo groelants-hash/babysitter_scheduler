@@ -1,6 +1,6 @@
 import { resend } from "./_lib/email.js";
 import { redis } from "./_lib/redis.js";
-
+import { emailDailyBackup } from "./_lib/export-backup.js";
 
 const SLOTS_KEY = "babysitter:slots";
 const USERS_KEY = "babysitter:users";
@@ -94,6 +94,16 @@ export default async function handler(req, res) {
   const authHeader = req.headers.authorization;
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  // Daily backup by email. Runs on the scheduled call only (not when an admin
+  // presses the "Test" button), and a failure here never blocks the reminder below.
+  if (req.query.force !== "1") {
+    try {
+      console.log("daily backup:", JSON.stringify(await emailDailyBackup(redis)));
+    } catch (err) {
+      console.error("daily backup failed:", err);
+    }
   }
 
   try {
