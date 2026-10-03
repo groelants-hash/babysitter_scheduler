@@ -36,6 +36,7 @@ Live at https://bbsit.vercel.app (Vercel project `bbsit`). gautrach.com is only 
 ## Hard limits
 - **Max 12 functions**: the free Vercel plan rejects any deployment with more than 12 files directly in `api/` (excluding `_lib`). Currently 9. Never add a new file in `api/` without counting; put helpers in `api/_lib/` or extend an existing function.
 - **Emails only from the live site**: all emails go through `api/_lib/email.js`, which only sends when `VERCEL_ENV === "production"`. Never import `resend` directly.
+- **Test accounts on test versions**: Preview deployments create two fake accounts on their empty test database the first time anyone signs in (`api/_lib/test-seed.js`): `test-admin@bbsit.test` (admin) and `test-sitter@bbsit.test` (sitter), both using the `TEST_ADMIN_PASSWORD` setting (Vercel, Preview only). This only runs when `VERCEL_ENV === "preview"` and only if the database has no users. Never weaken those checks.
 - **Test versions must use the test database**: Vercel Preview deployments must use their own Upstash database, never the live one (see "Data safety").
 
 ## Data safety

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { Fragment, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 
 const HERO_IMG = "https://i.imgur.com/w6RMVy0.jpeg";
@@ -26,6 +26,25 @@ function sitterColor(name, sitters) { return COLORS[sitters.indexOf(name) % COLO
 function initials(name) { return name.slice(0, 1).toUpperCase(); }
 function uid() { return Math.random().toString(36).slice(2, 8); }
 function fmtDate(date) { return new Date(date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }); }
+
+// Today's date as YYYY-MM-DD in the device's own time zone (not UTC).
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Display-only ordering (never changes stored data):
+// upcoming slots first (today counts as upcoming), soonest at the top;
+// past slots after them, most recent first.
+function orderSlotsByToday(slots, today = todayStr()) {
+  const cmp = (a, b) => a.date.localeCompare(b.date) || (a.start || "").localeCompare(b.start || "");
+  const upcoming = slots.filter(s => s.date >= today).sort(cmp);
+  const past = slots.filter(s => s.date < today).sort((a, b) => -cmp(a, b));
+  return [...upcoming, ...past];
+}
+
+// Look of a past slot: greyed out but still fully clickable.
+const PAST_STYLE = { opacity: 0.55, filter: "grayscale(1)" };
 function fmtH(h) { return h % 1 === 0 ? h : h.toFixed(1); }
 
 function gcalUrl(slot) {
@@ -35,11 +54,48 @@ function gcalUrl(slot) {
   return `${base}&text=Babysitter+(${slot.claimedBy || ""})&dates=${d}T${ts(slot.start)}00/${d}T${ts(slot.end)}00`;
 }
 
-function icalUrl(slot) {
+// Builds a proper calendar (.ics) file for one slot. Times are "floating" local
+// times, so the event shows at the same clock time wherever the phone is.
+// A slot ending at or before its start (e.g. 19:00 – 01:00) ends the next day.
+function icsText(slot, attendees = []) {
+  const compact = t => t.replace(":", "") + "00";
   const d = slot.date.replace(/-/g, "");
-  const ts = t => t.replace(":", "");
-  const title = encodeURIComponent(`Babysitting (${slot.claimedBy || ""})`);
-  return `data:text/calendar;charset=utf8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ADTSTART:${d}T${ts(slot.start)}00%0ADTEND:${d}T${ts(slot.end)}00%0ASUMMARY:${title}%0AEND:VEVENT%0AEND:VCALENDAR`;
+  let endDate = new Date(slot.date + "T00:00:00");
+  if (slot.end <= slot.start) endDate.setDate(endDate.getDate() + 1);
+  const e = `${endDate.getFullYear()}${String(endDate.getMonth() + 1).padStart(2, "0")}${String(endDate.getDate()).padStart(2, "0")}`;
+  const now = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+  const title = `Babysitting${slot.claimedBy ? " (" + slot.claimedBy + ")" : ""}`.replace(/([,;\\])/g, "\\$1");
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//BBSIT//Babysitter Scheduler//EN",
+    "CALSCALE:GREGORIAN",
+    attendees.length ? "METHOD:REQUEST" : "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    `UID:bbsit-${slot.id}-${d}@bbsit.vercel.app`,
+    `DTSTAMP:${now}`,
+    `DTSTART:${d}T${compact(slot.start)}`,
+    `DTEND:${e}T${compact(slot.end)}`,
+    `SUMMARY:${title}`,
+    // Guests (admin view only): the first one is the organiser, everyone is invited.
+    ...(attendees.length ? [`ORGANIZER:mailto:${attendees[0]}`] : []),
+    ...attendees.map((a, i) => `ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=${i === 0 ? "ACCEPTED" : "NEEDS-ACTION"};RSVP=${i === 0 ? "FALSE" : "TRUE"}:mailto:${a}`),
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n") + "\r\n";
+}
+
+// Hands the .ics file to the phone/computer so it can offer "Add to Calendar".
+function downloadIcs(slot, attendees = []) {
+  const blob = new Blob([icsText(slot, attendees)], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `bbsit-${slot.date}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 function calcSplit(slot) {
@@ -888,7 +944,7 @@ function AdminApp({ slotData, saveSlots, users, saveUsers, tab, setTab, token })
 
       {tab === "slots"    && <SlotsTab data={slotData} save={saveSlots} users={users} token={token} />}
       {tab === "sitters"  && <SittersTab data={slotData} save={saveSlots} />}
-      {tab === "overview" && <OverviewTab data={slotData} unclaimSlot={id => saveSlots({ ...slotData, slots: slotData.slots.map(s => s.id === id ? { ...s, claimedBy: null } : s) })} />}
+      {tab === "overview" && <OverviewTab data={slotData} users={users} unclaimSlot={id => saveSlots({ ...slotData, slots: slotData.slots.map(s => s.id === id ? { ...s, claimedBy: null } : s) })} />}
       {tab === "payroll"  && <Payroll data={slotData} save={saveSlots} />}
       {tab === "users"    && <UsersTab users={users} saveUsers={saveUsers} sitters={slotData.sitters} />}
       {tab === "test"     && <TestTab />}
@@ -915,16 +971,19 @@ function SitterApp({ slotData, saveSlots, session }) {
     saveSlots({ ...slotData, slots: slotData.slots.map(s => s.id === id ? { ...s, claimedBy: null } : s) });
   }
 
-  const visibleSlots = [...slotData.slots]
-    .filter(sl => !(sl.freeNight && !FREE_NIGHT_SITTERS.includes(name)))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const todayKey = todayStr();
+  const visibleSlots = orderSlotsByToday(
+    slotData.slots.filter(sl => !(sl.freeNight && !FREE_NIGHT_SITTERS.includes(name))),
+    todayKey
+  );
 
   // Current month overview
   const currentMonth = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
   const monthName = new Date(currentMonth + "-02").toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-  const myMonthSlots = slotData.slots
-    .filter(sl => sl.claimedBy === name && sl.date.startsWith(currentMonth))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const myMonthSlots = orderSlotsByToday(
+    slotData.slots.filter(sl => sl.claimedBy === name && sl.date.startsWith(currentMonth)),
+    todayKey
+  );
   const rates = slotData.rates || {};
   const dayRate = parseFloat(rates.day ?? 12);
   const nightRate = parseFloat(rates.night ?? 10);
@@ -968,14 +1027,17 @@ function SitterApp({ slotData, saveSlots, session }) {
           <p className="section-label">📆 {monthName}</p>
           {myMonthSlots.length === 0
             ? <div className="empty"><div className="empty-icon">🌿</div>No slots claimed yet this month.</div>
-            : myMonthSlots.map(sl => {
+            : myMonthSlots.map((sl, i) => {
                 const hour = parseInt(sl.start.split(":")[0]);
                 const icon = hour >= 19 ? "🌙" : hour >= 17 ? "🌆" : "☀️";
                 const { dayH, nightH } = calcSplit(sl);
                 const slotEarnings = sl.freeNight ? 0 : dayH * dayRate + nightH * nightRate;
-                const isPast = sl.date < currentMonth.slice(0,7) + "-" + new Date().getDate().toString().padStart(2,'0') || sl.date < new Date().toISOString().slice(0,10);
+                const isPast = sl.date < todayKey;
+                const firstPast = isPast && (i === 0 || myMonthSlots[i - 1].date >= todayKey);
                 return (
-                  <div className="slot-card" key={sl.id} style={{ opacity: isPast ? 0.6 : 1 }}>
+                  <Fragment key={sl.id}>
+                  {firstPast && <p className="section-label">Past slots</p>}
+                  <div className="slot-card" style={isPast ? PAST_STYLE : undefined}>
                     <div className="slot-icon" style={{ background: color + "20" }}>
                       <span>{icon}</span>
                     </div>
@@ -991,10 +1053,11 @@ function SitterApp({ slotData, saveSlots, session }) {
                       }
                       <div style={{ display: "flex", gap: 4 }}>
                         <a href={gcalUrl(sl)} target="_blank" rel="noreferrer" className="cal-link" style={{ fontSize: 11, padding: "4px 8px" }}>📅 GCal</a>
-                        <a href={icalUrl(sl)} download={`bbsit-${sl.date}.ics`} className="cal-link" style={{ fontSize: 11, padding: "4px 8px" }}>🍎 iCal</a>
+                        <a href="#" onClick={e => { e.preventDefault(); downloadIcs(sl); }} className="cal-link" style={{ fontSize: 11, padding: "4px 8px" }}>🍎 iCal</a>
                       </div>
                     </div>
                   </div>
+                  </Fragment>
                 );
               })
           }
@@ -1005,13 +1068,17 @@ function SitterApp({ slotData, saveSlots, session }) {
         <>
           {visibleSlots.length === 0
             ? <div className="empty"><div className="empty-icon">📭</div>No slots available right now.</div>
-            : visibleSlots.map(sl => {
+            : visibleSlots.map((sl, i) => {
                 const mine = sl.claimedBy === name;
                 const taken = sl.claimedBy && !mine;
                 const hour = parseInt(sl.start.split(":")[0]);
                 const icon = hour >= 19 ? "🌙" : hour >= 17 ? "🌆" : "☀️";
+                const isPastSlot = sl.date < todayKey;
+                const firstPast = isPastSlot && (i === 0 || visibleSlots[i - 1].date >= todayKey);
                 return (
-                  <div className="slot-card" key={sl.id} style={{ opacity: taken ? 0.5 : 1 }}>
+                  <Fragment key={sl.id}>
+                  {firstPast && <p className="section-label">Past slots</p>}
+                  <div className="slot-card" style={isPastSlot ? PAST_STYLE : { opacity: taken ? 0.5 : 1 }}>
                     <div className="slot-icon" style={{ background: mine ? color + "20" : taken ? "var(--cream-dark)" : "var(--green-light)" }}>
                       <span>{icon}</span>
                     </div>
@@ -1029,6 +1096,7 @@ function SitterApp({ slotData, saveSlots, session }) {
                       }
                     </div>
                   </div>
+                  </Fragment>
                 );
               })
           }
@@ -1222,6 +1290,7 @@ function SlotsTab({ data, save, users, token }) {
   });
 
   const genCount = countGenSlots();
+  const todayKey = todayStr();
 
   return (
     <>
@@ -1262,12 +1331,16 @@ function SlotsTab({ data, save, users, token }) {
       </div>
       {data.slots.length === 0
         ? <div className="empty"><div className="empty-icon">🗓️</div>No slots yet — generate or add one!</div>
-        : [...data.slots].sort((a, b) => a.date.localeCompare(b.date)).map(sl => {
+        : orderSlotsByToday(data.slots, todayKey).map((sl, i, arr) => {
+            const isPastSlot = sl.date < todayKey;
+            const firstPast = isPastSlot && (i === 0 || arr[i - 1].date >= todayKey);
             const color = sl.claimedBy ? sitterColor(sl.claimedBy, data.sitters) : "#ccc";
             const hour = parseInt(sl.start.split(":")[0]);
             const icon = hour >= 19 ? "🌙" : hour >= 17 ? "🌆" : "☀️";
             return (
-              <div className="slot-card" key={sl.id} style={{ cursor: "pointer" }}
+              <Fragment key={sl.id}>
+              {firstPast && <p className="section-label">Past slots</p>}
+              <div className="slot-card" style={{ cursor: "pointer", ...(isPastSlot ? PAST_STYLE : {}) }}
                 onClick={() => setAssignSlot(sl)}>
                 <div className="slot-icon" style={{ background: sl.claimedBy ? color + "25" : "var(--cream-dark)" }}>
                   {icon}
@@ -1300,6 +1373,7 @@ function SlotsTab({ data, save, users, token }) {
                   <button className="btn-ghost" title="Remove" onClick={e => { e.stopPropagation(); save({ ...data, slots: data.slots.filter(s => s.id !== sl.id) }); }}>✕</button>
                 </div>
               </div>
+              </Fragment>
             );
           })
       }
@@ -1543,15 +1617,22 @@ function SittersTab({ data, save }) {
 
 // ─── Overview tab ─────────────────────────────────────────────────────────────
 
-function OverviewTab({ data, unclaimSlot }) {
-  const filled = data.slots.filter(sl => sl.claimedBy).sort((a, b) => a.date.localeCompare(b.date));
+function OverviewTab({ data, unclaimSlot, users }) {
+  // Every admin is invited to the calendar event (admin view only).
+  const adminEmails = (users || []).filter(u => u.role === "admin" && u.email).map(u => u.email.trim());
+  const todayKey = todayStr();
+  const filled = orderSlotsByToday(data.slots.filter(sl => sl.claimedBy), todayKey);
   if (!filled.length) return (
     <div className="empty"><div className="empty-icon">👀</div>No slots claimed yet.</div>
   );
-  return filled.map(sl => {
+  return filled.map((sl, i) => {
     const color = sitterColor(sl.claimedBy, data.sitters);
+    const isPastSlot = sl.date < todayKey;
+    const firstPast = isPastSlot && (i === 0 || filled[i - 1].date >= todayKey);
     return (
-      <div className="slot-card" key={sl.id}>
+      <Fragment key={sl.id}>
+      {firstPast && <p className="section-label">Past slots</p>}
+      <div className="slot-card" style={isPastSlot ? PAST_STYLE : undefined}>
         <div className="avatar" style={{ background: color, width: 40, height: 40, fontSize: 16 }}>{initials(sl.claimedBy)}</div>
         <div className="slot-body">
           <p className="slot-date">{fmtDate(sl.date)}</p>
@@ -1559,9 +1640,10 @@ function OverviewTab({ data, unclaimSlot }) {
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           <a href={gcalUrl(sl)} target="_blank" rel="noreferrer" className="cal-link">📅 GCal</a>
-          <a href={icalUrl(sl)} download={`bbsit-${sl.date}.ics`} className="cal-link">🍎 iCal</a>
+          <a href="#" onClick={e => { e.preventDefault(); downloadIcs(sl, adminEmails); }} className="cal-link">🍎 iCal</a>
         </div>
       </div>
+      </Fragment>
     );
   });
 }
