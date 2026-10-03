@@ -1,5 +1,6 @@
 import { redis } from "../redis.js";
 import { verifyPassword, hashPassword, isHashed, createSession } from "../auth.js";
+import { seedTestAccountsIfEmpty } from "../test-seed.js";
 
 const KEY = "babysitter:users";
 
@@ -15,6 +16,10 @@ export default async function handler(req, res) {
   if (!email || !password) {
     return res.status(400).json({ error: "Email and password required." });
   }
+
+  // Test versions only: create the fake test accounts if the test database is empty.
+  // Does nothing on the live site (see api/_lib/test-seed.js).
+  await seedTestAccountsIfEmpty(redis);
 
   const users = (await redis.get(KEY)) || [];
   const idx = users.findIndex(
