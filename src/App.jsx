@@ -57,7 +57,7 @@ function gcalUrl(slot) {
 // Builds a proper calendar (.ics) file for one slot. Times are "floating" local
 // times, so the event shows at the same clock time wherever the phone is.
 // A slot ending at or before its start (e.g. 19:00 – 01:00) ends the next day.
-function icsText(slot) {
+function icsText(slot, attendees = []) {
   const compact = t => t.replace(":", "") + "00";
   const d = slot.date.replace(/-/g, "");
   let endDate = new Date(slot.date + "T00:00:00");
@@ -70,21 +70,24 @@ function icsText(slot) {
     "VERSION:2.0",
     "PRODID:-//BBSIT//Babysitter Scheduler//EN",
     "CALSCALE:GREGORIAN",
-    "METHOD:PUBLISH",
+    attendees.length ? "METHOD:REQUEST" : "METHOD:PUBLISH",
     "BEGIN:VEVENT",
     `UID:bbsit-${slot.id}-${d}@bbsit.vercel.app`,
     `DTSTAMP:${now}`,
     `DTSTART:${d}T${compact(slot.start)}`,
     `DTEND:${e}T${compact(slot.end)}`,
     `SUMMARY:${title}`,
+    // Guests (admin view only): the first one is the organiser, everyone is invited.
+    ...(attendees.length ? [`ORGANIZER:mailto:${attendees[0]}`] : []),
+    ...attendees.map((a, i) => `ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=${i === 0 ? "ACCEPTED" : "NEEDS-ACTION"};RSVP=${i === 0 ? "FALSE" : "TRUE"}:mailto:${a}`),
     "END:VEVENT",
     "END:VCALENDAR",
   ].join("\r\n") + "\r\n";
 }
 
 // Hands the .ics file to the phone/computer so it can offer "Add to Calendar".
-function downloadIcs(slot) {
-  const blob = new Blob([icsText(slot)], { type: "text/calendar;charset=utf-8" });
+function downloadIcs(slot, attendees = []) {
+  const blob = new Blob([icsText(slot, attendees)], { type: "text/calendar;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -941,7 +944,7 @@ function AdminApp({ slotData, saveSlots, users, saveUsers, tab, setTab, token })
 
       {tab === "slots"    && <SlotsTab data={slotData} save={saveSlots} users={users} token={token} />}
       {tab === "sitters"  && <SittersTab data={slotData} save={saveSlots} />}
-      {tab === "overview" && <OverviewTab data={slotData} unclaimSlot={id => saveSlots({ ...slotData, slots: slotData.slots.map(s => s.id === id ? { ...s, claimedBy: null } : s) })} />}
+      {tab === "overview" && <OverviewTab data={slotData} users={users} unclaimSlot={id => saveSlots({ ...slotData, slots: slotData.slots.map(s => s.id === id ? { ...s, claimedBy: null } : s) })} />}
       {tab === "payroll"  && <Payroll data={slotData} save={saveSlots} />}
       {tab === "users"    && <UsersTab users={users} saveUsers={saveUsers} sitters={slotData.sitters} />}
       {tab === "test"     && <TestTab />}
@@ -1614,7 +1617,9 @@ function SittersTab({ data, save }) {
 
 // ─── Overview tab ─────────────────────────────────────────────────────────────
 
-function OverviewTab({ data, unclaimSlot }) {
+function OverviewTab({ data, unclaimSlot, users }) {
+  // Every admin is invited to the calendar event (admin view only).
+  const adminEmails = (users || []).filter(u => u.role === "admin" && u.email).map(u => u.email.trim());
   const todayKey = todayStr();
   const filled = orderSlotsByToday(data.slots.filter(sl => sl.claimedBy), todayKey);
   if (!filled.length) return (
@@ -1635,7 +1640,7 @@ function OverviewTab({ data, unclaimSlot }) {
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           <a href={gcalUrl(sl)} target="_blank" rel="noreferrer" className="cal-link">📅 GCal</a>
-          <a href="#" onClick={e => { e.preventDefault(); downloadIcs(sl); }} className="cal-link">🍎 iCal</a>
+          <a href="#" onClick={e => { e.preventDefault(); downloadIcs(sl, adminEmails); }} className="cal-link">🍎 iCal</a>
         </div>
       </div>
       </Fragment>
