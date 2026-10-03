@@ -54,11 +54,45 @@ function gcalUrl(slot) {
   return `${base}&text=Babysitter+(${slot.claimedBy || ""})&dates=${d}T${ts(slot.start)}00/${d}T${ts(slot.end)}00`;
 }
 
-function icalUrl(slot) {
+// Builds a proper calendar (.ics) file for one slot. Times are "floating" local
+// times, so the event shows at the same clock time wherever the phone is.
+// A slot ending at or before its start (e.g. 19:00 – 01:00) ends the next day.
+function icsText(slot) {
+  const compact = t => t.replace(":", "") + "00";
   const d = slot.date.replace(/-/g, "");
-  const ts = t => t.replace(":", "");
-  const title = encodeURIComponent(`Babysitting (${slot.claimedBy || ""})`);
-  return `data:text/calendar;charset=utf8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ADTSTART:${d}T${ts(slot.start)}00%0ADTEND:${d}T${ts(slot.end)}00%0ASUMMARY:${title}%0AEND:VEVENT%0AEND:VCALENDAR`;
+  let endDate = new Date(slot.date + "T00:00:00");
+  if (slot.end <= slot.start) endDate.setDate(endDate.getDate() + 1);
+  const e = `${endDate.getFullYear()}${String(endDate.getMonth() + 1).padStart(2, "0")}${String(endDate.getDate()).padStart(2, "0")}`;
+  const now = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+  const title = `Babysitting${slot.claimedBy ? " (" + slot.claimedBy + ")" : ""}`.replace(/([,;\\])/g, "\\$1");
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//BBSIT//Babysitter Scheduler//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    `UID:bbsit-${slot.id}-${d}@bbsit.vercel.app`,
+    `DTSTAMP:${now}`,
+    `DTSTART:${d}T${compact(slot.start)}`,
+    `DTEND:${e}T${compact(slot.end)}`,
+    `SUMMARY:${title}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n") + "\r\n";
+}
+
+// Hands the .ics file to the phone/computer so it can offer "Add to Calendar".
+function downloadIcs(slot) {
+  const blob = new Blob([icsText(slot)], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `bbsit-${slot.date}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 function calcSplit(slot) {
@@ -1016,7 +1050,7 @@ function SitterApp({ slotData, saveSlots, session }) {
                       }
                       <div style={{ display: "flex", gap: 4 }}>
                         <a href={gcalUrl(sl)} target="_blank" rel="noreferrer" className="cal-link" style={{ fontSize: 11, padding: "4px 8px" }}>📅 GCal</a>
-                        <a href={icalUrl(sl)} download={`bbsit-${sl.date}.ics`} className="cal-link" style={{ fontSize: 11, padding: "4px 8px" }}>🍎 iCal</a>
+                        <a href="#" onClick={e => { e.preventDefault(); downloadIcs(sl); }} className="cal-link" style={{ fontSize: 11, padding: "4px 8px" }}>🍎 iCal</a>
                       </div>
                     </div>
                   </div>
@@ -1601,7 +1635,7 @@ function OverviewTab({ data, unclaimSlot }) {
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           <a href={gcalUrl(sl)} target="_blank" rel="noreferrer" className="cal-link">📅 GCal</a>
-          <a href={icalUrl(sl)} download={`bbsit-${sl.date}.ics`} className="cal-link">🍎 iCal</a>
+          <a href="#" onClick={e => { e.preventDefault(); downloadIcs(sl); }} className="cal-link">🍎 iCal</a>
         </div>
       </div>
       </Fragment>
