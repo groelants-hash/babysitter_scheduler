@@ -943,9 +943,10 @@ function SitterApp({ slotData, saveSlots, session }) {
   // Current month overview
   const currentMonth = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
   const monthName = new Date(currentMonth + "-02").toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-  const myMonthSlots = slotData.slots
-    .filter(sl => sl.claimedBy === name && sl.date.startsWith(currentMonth))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const myMonthSlots = orderSlotsByToday(
+    slotData.slots.filter(sl => sl.claimedBy === name && sl.date.startsWith(currentMonth)),
+    todayKey
+  );
   const rates = slotData.rates || {};
   const dayRate = parseFloat(rates.day ?? 12);
   const nightRate = parseFloat(rates.night ?? 10);
@@ -989,14 +990,17 @@ function SitterApp({ slotData, saveSlots, session }) {
           <p className="section-label">📆 {monthName}</p>
           {myMonthSlots.length === 0
             ? <div className="empty"><div className="empty-icon">🌿</div>No slots claimed yet this month.</div>
-            : myMonthSlots.map(sl => {
+            : myMonthSlots.map((sl, i) => {
                 const hour = parseInt(sl.start.split(":")[0]);
                 const icon = hour >= 19 ? "🌙" : hour >= 17 ? "🌆" : "☀️";
                 const { dayH, nightH } = calcSplit(sl);
                 const slotEarnings = sl.freeNight ? 0 : dayH * dayRate + nightH * nightRate;
-                const isPast = sl.date < currentMonth.slice(0,7) + "-" + new Date().getDate().toString().padStart(2,'0') || sl.date < new Date().toISOString().slice(0,10);
+                const isPast = sl.date < todayKey;
+                const firstPast = isPast && (i === 0 || myMonthSlots[i - 1].date >= todayKey);
                 return (
-                  <div className="slot-card" key={sl.id} style={{ opacity: isPast ? 0.6 : 1 }}>
+                  <Fragment key={sl.id}>
+                  {firstPast && <p className="section-label">Past slots</p>}
+                  <div className="slot-card" style={isPast ? PAST_STYLE : undefined}>
                     <div className="slot-icon" style={{ background: color + "20" }}>
                       <span>{icon}</span>
                     </div>
@@ -1016,6 +1020,7 @@ function SitterApp({ slotData, saveSlots, session }) {
                       </div>
                     </div>
                   </div>
+                  </Fragment>
                 );
               })
           }
@@ -1576,14 +1581,19 @@ function SittersTab({ data, save }) {
 // ─── Overview tab ─────────────────────────────────────────────────────────────
 
 function OverviewTab({ data, unclaimSlot }) {
-  const filled = data.slots.filter(sl => sl.claimedBy).sort((a, b) => a.date.localeCompare(b.date));
+  const todayKey = todayStr();
+  const filled = orderSlotsByToday(data.slots.filter(sl => sl.claimedBy), todayKey);
   if (!filled.length) return (
     <div className="empty"><div className="empty-icon">👀</div>No slots claimed yet.</div>
   );
-  return filled.map(sl => {
+  return filled.map((sl, i) => {
     const color = sitterColor(sl.claimedBy, data.sitters);
+    const isPastSlot = sl.date < todayKey;
+    const firstPast = isPastSlot && (i === 0 || filled[i - 1].date >= todayKey);
     return (
-      <div className="slot-card" key={sl.id}>
+      <Fragment key={sl.id}>
+      {firstPast && <p className="section-label">Past slots</p>}
+      <div className="slot-card" style={isPastSlot ? PAST_STYLE : undefined}>
         <div className="avatar" style={{ background: color, width: 40, height: 40, fontSize: 16 }}>{initials(sl.claimedBy)}</div>
         <div className="slot-body">
           <p className="slot-date">{fmtDate(sl.date)}</p>
@@ -1594,6 +1604,7 @@ function OverviewTab({ data, unclaimSlot }) {
           <a href={icalUrl(sl)} download={`bbsit-${sl.date}.ics`} className="cal-link">🍎 iCal</a>
         </div>
       </div>
+      </Fragment>
     );
   });
 }
