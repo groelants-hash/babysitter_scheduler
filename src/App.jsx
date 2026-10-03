@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { Fragment, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 
 const HERO_IMG = "https://i.imgur.com/w6RMVy0.jpeg";
@@ -26,6 +26,25 @@ function sitterColor(name, sitters) { return COLORS[sitters.indexOf(name) % COLO
 function initials(name) { return name.slice(0, 1).toUpperCase(); }
 function uid() { return Math.random().toString(36).slice(2, 8); }
 function fmtDate(date) { return new Date(date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }); }
+
+// Today's date as YYYY-MM-DD in the device's own time zone (not UTC).
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Display-only ordering (never changes stored data):
+// upcoming slots first (today counts as upcoming), soonest at the top;
+// past slots after them, most recent first.
+function orderSlotsByToday(slots, today = todayStr()) {
+  const cmp = (a, b) => a.date.localeCompare(b.date) || (a.start || "").localeCompare(b.start || "");
+  const upcoming = slots.filter(s => s.date >= today).sort(cmp);
+  const past = slots.filter(s => s.date < today).sort((a, b) => -cmp(a, b));
+  return [...upcoming, ...past];
+}
+
+// Look of a past slot: greyed out but still fully clickable.
+const PAST_STYLE = { opacity: 0.55, filter: "grayscale(1)" };
 function fmtH(h) { return h % 1 === 0 ? h : h.toFixed(1); }
 
 function gcalUrl(slot) {
@@ -915,9 +934,11 @@ function SitterApp({ slotData, saveSlots, session }) {
     saveSlots({ ...slotData, slots: slotData.slots.map(s => s.id === id ? { ...s, claimedBy: null } : s) });
   }
 
-  const visibleSlots = [...slotData.slots]
-    .filter(sl => !(sl.freeNight && !FREE_NIGHT_SITTERS.includes(name)))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const todayKey = todayStr();
+  const visibleSlots = orderSlotsByToday(
+    slotData.slots.filter(sl => !(sl.freeNight && !FREE_NIGHT_SITTERS.includes(name))),
+    todayKey
+  );
 
   // Current month overview
   const currentMonth = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
@@ -1005,13 +1026,17 @@ function SitterApp({ slotData, saveSlots, session }) {
         <>
           {visibleSlots.length === 0
             ? <div className="empty"><div className="empty-icon">📭</div>No slots available right now.</div>
-            : visibleSlots.map(sl => {
+            : visibleSlots.map((sl, i) => {
                 const mine = sl.claimedBy === name;
                 const taken = sl.claimedBy && !mine;
                 const hour = parseInt(sl.start.split(":")[0]);
                 const icon = hour >= 19 ? "🌙" : hour >= 17 ? "🌆" : "☀️";
+                const isPastSlot = sl.date < todayKey;
+                const firstPast = isPastSlot && (i === 0 || visibleSlots[i - 1].date >= todayKey);
                 return (
-                  <div className="slot-card" key={sl.id} style={{ opacity: taken ? 0.5 : 1 }}>
+                  <Fragment key={sl.id}>
+                  {firstPast && <p className="section-label">Past slots</p>}
+                  <div className="slot-card" style={isPastSlot ? PAST_STYLE : { opacity: taken ? 0.5 : 1 }}>
                     <div className="slot-icon" style={{ background: mine ? color + "20" : taken ? "var(--cream-dark)" : "var(--green-light)" }}>
                       <span>{icon}</span>
                     </div>
@@ -1029,6 +1054,7 @@ function SitterApp({ slotData, saveSlots, session }) {
                       }
                     </div>
                   </div>
+                  </Fragment>
                 );
               })
           }
@@ -1222,6 +1248,7 @@ function SlotsTab({ data, save, users, token }) {
   });
 
   const genCount = countGenSlots();
+  const todayKey = todayStr();
 
   return (
     <>
@@ -1262,12 +1289,16 @@ function SlotsTab({ data, save, users, token }) {
       </div>
       {data.slots.length === 0
         ? <div className="empty"><div className="empty-icon">🗓️</div>No slots yet — generate or add one!</div>
-        : [...data.slots].sort((a, b) => a.date.localeCompare(b.date)).map(sl => {
+        : orderSlotsByToday(data.slots, todayKey).map((sl, i, arr) => {
+            const isPastSlot = sl.date < todayKey;
+            const firstPast = isPastSlot && (i === 0 || arr[i - 1].date >= todayKey);
             const color = sl.claimedBy ? sitterColor(sl.claimedBy, data.sitters) : "#ccc";
             const hour = parseInt(sl.start.split(":")[0]);
             const icon = hour >= 19 ? "🌙" : hour >= 17 ? "🌆" : "☀️";
             return (
-              <div className="slot-card" key={sl.id} style={{ cursor: "pointer" }}
+              <Fragment key={sl.id}>
+              {firstPast && <p className="section-label">Past slots</p>}
+              <div className="slot-card" style={{ cursor: "pointer", ...(isPastSlot ? PAST_STYLE : {}) }}
                 onClick={() => setAssignSlot(sl)}>
                 <div className="slot-icon" style={{ background: sl.claimedBy ? color + "25" : "var(--cream-dark)" }}>
                   {icon}
@@ -1300,6 +1331,7 @@ function SlotsTab({ data, save, users, token }) {
                   <button className="btn-ghost" title="Remove" onClick={e => { e.stopPropagation(); save({ ...data, slots: data.slots.filter(s => s.id !== sl.id) }); }}>✕</button>
                 </div>
               </div>
+              </Fragment>
             );
           })
       }
